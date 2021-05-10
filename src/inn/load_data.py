@@ -5,6 +5,10 @@ from torch.utils.data import TensorDataset
 
 
 def load_data(path: str = "data/forward.pickle") -> TensorDataset:
+    """
+    :param path: Path to the file containing the pickled training data
+    :return: A dataset that returns tuples of (thetas, positions), each of size (batch_size, 2) and dtype=torch.float
+    """
     with open(path, "rb") as file:
         data = pickle.load(file)
 
