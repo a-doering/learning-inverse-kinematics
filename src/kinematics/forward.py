@@ -1,6 +1,14 @@
+import os
+import pickle
+
 import numpy as np
 from sympy import *
 import matplotlib.pyplot as plt
+
+
+OUT_DIR = "data/"
+OUT_FILE_NAME = "forward.pickle"
+
 
 alpha0,alpha1,alpha2,alpha3,alpha4,alpha5,alpha6 = symbols('alpha0:7')
 a0,a1,a2,a3,a4,a5,a6 = symbols('a0:7')
@@ -48,3 +56,13 @@ for i in range(len(q1_list)):
 
 plt.scatter(x_pos[:],y_pos[:])
 plt.show()
+
+
+# Save data for training
+data = {
+    "thetas": output_theta,
+    "positions": list(zip(x_pos, y_pos)),
+}
+os.makedirs(OUT_DIR, exist_ok=True)
+with open(OUT_DIR + "/" + OUT_FILE_NAME, "wb") as file:
+    pickle.dump(data, file)

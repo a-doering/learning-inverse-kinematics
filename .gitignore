@@ -2,3 +2,6 @@
 /.idea/
 # virtual env
 /.venv/
+
+# generated training data
+/data/
