@@ -13,7 +13,7 @@ def create_inn(n_dim: int = 2) -> SequenceINN:
 
 
 def _subnet_fc(dims_in, dims_out) -> nn.Sequential:
-    """Creates a subnet for use inside an affine coupling block"""
+    """Creates a subnet for use inside an affine coupling block."""
     return nn.Sequential(
         nn.Linear(dims_in, 256),
         nn.ReLU(),

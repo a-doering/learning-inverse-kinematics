@@ -1,4 +1,4 @@
-from .load_data import load_data
+from .dataset import load_dataset
 from .model import create_inn
 
-__all__ = ["create_inn", "load_data"]
+__all__ = ["create_inn", "load_dataset"]
