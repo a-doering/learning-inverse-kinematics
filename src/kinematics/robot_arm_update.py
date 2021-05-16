@@ -2,13 +2,17 @@ import os
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.core.numeric import indices
+
 
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al."""
     def __init__(self, lengths=[0.5, 0.5, 1], sigmas=[0.25, 0.5, 0.5, 0.5]):
         self.sigmas = np.array(sigmas)
         self.lengths = np.array(lengths)
-    
+        self.rangex = (-0.5, 2.5)  # (-0.35, 2.25)
+        self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
+
     def forward(self, parameters):
         t1, t2, t3, t4 = parameters
         l1, l2, l3 = self.lengths
@@ -44,8 +48,22 @@ class RobotArm2d():
         print(f"Error: {np.linalg.norm(error)}")
         return guess
 
-    def viz_forward(self):
-        pass
+    def viz_forward(self, tcp_array: np.array, priors=None):
+        fig = self.init_plot()
+        if priors is not None:
+            # TODO: implement plotting of arm joints
+            pass
+        else:
+            plt.scatter(tcp_array[:, 0], tcp_array[:, 1], s=5)
+        plt.xlim(*self.rangex)
+        plt.ylim(*self.rangey)
+        plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
+        plt.title(f"Forward Kinematics with {tcp_array.shape[0]} samples")
+        plt.show()
+
+    def init_plot(self):
+        return plt.figure(figsize=(8,8))
+
     def viz_inverse(self):
         pass
     def save(self):
@@ -59,8 +77,7 @@ if __name__ == "__main__":
     tip_array = np.zeros((1000,2))
     for i in range(1000):
         tip_array[i] = arm.forward(arm.sample_priors())
-    plt.scatter(tip_array[:,0], tip_array[:,1])
-    plt.show()
+    arm.viz_forward(tip_array)
 
     # Viz and test inverse
     theta = arm.sample_priors()
