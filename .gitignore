@@ -1,5 +1,7 @@
 # PyCharm
 /.idea/
+# VS Code
+/.vscode
 # virtual env
 /.venv/
 # Python
