@@ -15,6 +15,7 @@ class RobotArm2d():
         self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
         cmap = cm.tab20c
         self.colors = [[cmap(4*c_index), cmap(4*c_index+1), cmap(4*c_index+2)] for c_index in range(5)][-1]
+        self.out_dir = "data"
 
     def forward(self, parameters: np.array) -> np.array:
         """Forward kinematics of given joint configuration
@@ -29,9 +30,12 @@ class RobotArm2d():
         y = t1 + l1 * np.sin(t2) + l2 * np.sin(t3 + t2) + l3 * np.sin(t4 + t3 + t2)
         return np.array([x, y])
 
-    def sample_priors(self):
+    def sample_priors(self, samples=1):
         """Normal distributed values of the joint parameters"""
-        return np.random.randn(4) * self.sigmas
+        if samples == 1:
+            return np.random.randn(4) * self.sigmas
+        else:
+            return np.random.randn(samples, 4) * self.sigmas
 
     def inverse(self, tcp_pos: np.array, guess: np.array, epsilon=5e-2, max_steps=3000, lr=0.2) -> np.array:
         """Inverse kinematics with gradient descent
@@ -124,25 +128,58 @@ class RobotArm2d():
         plt.title(f"Inverse Kinematics with {guesses_array.shape[0]} samples")
         plt.show()
 
-    def save(self):
-        raise NotImplementedError("TODO")
+    def save_forward(self, tcp_array: np.array, priors: np.array) -> None:
+        """Saving of forward kinematics
+
+        :param tcp_array: Tool center point np.array of size (n, 2)
+        :param priors: Joint priors corresponding to tcp_array of size (n, 4)
+        """
+        data = {
+            "positions": tcp_array,
+            "priors": priors
+        }
+        os.makedirs(self.out_dir, exist_ok=True)
+        with open(self.out_dir + os.path.sep + "forward.pickle", "wb") as file:
+            pickle.dump(data, file)
+
+    def save_inverse(self, tcp_pos: np.array, guesses_array: np.array) -> None:
+        """Saving of inverse kinematics
+
+        :param tcp_pos: Tool center point np.array of size (2)
+        :param guesses_array: Joint configurations that lead to tcp_pos, np.array of size (n, 4)
+        """
+        data = {
+            "positions": tcp_pos,
+            "posteriors": guesses_array
+        }
+        os.makedirs(self.out_dir, exist_ok=True)
+        with open(self.out_dir + os.path.sep + "inverse.pickle", "wb") as file:
+            pickle.dump(data, file)
 
 
 if __name__ == "__main__":
     arm = RobotArm2d()
 
+    # Samples to be generated
+    n = 1000
+
     # Viz forward
-    tip_array = np.zeros((1000, 2))
-    for i in range(1000):
-        tip_array[i] = arm.forward(arm.sample_priors())
-    arm.viz_forward(tip_array)
+    tcp_array = np.zeros((n, 2))
+    priors = arm.sample_priors(n)
+    for i in range(n):
+        tcp_array[i] = arm.forward(priors[i])
+    arm.save_forward(tcp_array, priors)
+    arm.viz_forward(tcp_array)
 
     # Viz and test inverse
     theta = arm.sample_priors()
-    pos_for = np.array(arm.forward(theta))
+    tcp_pos = np.array(arm.forward(theta))
     start = time.time()
-    guesses_array = np.zeros((1000, 4))
-    for i in range(1000):
-        guesses_array[i] = arm.inverse(pos_for, arm.sample_priors())
+    guesses_array = np.zeros((n, 4))
+    for i in range(n):
+        guesses_array[i] = arm.inverse(tcp_pos, arm.sample_priors())
     print(time.time()-start)
-    arm.viz_inverse(pos_for, guesses_array)
+    arm.save_inverse(tcp_pos, guesses_array)
+    arm.viz_inverse(tcp_pos, guesses_array)
+
+    # TODO: create n forward configurations with m inverses each
