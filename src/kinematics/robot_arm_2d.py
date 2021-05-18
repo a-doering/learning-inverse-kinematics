@@ -8,14 +8,14 @@ import time
 
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational"""
-    def __init__(self, lengths=[0.5, 0.5, 1], sigmas=[0.25, 0.5, 0.5, 0.5]):
+    def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5]):
         self.sigmas = np.array(sigmas)
         self.lengths = np.array(lengths)
         self.rangex = (-0.5, 2.5)  # (-0.35, 2.25)
         self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
         cmap = cm.tab20c
         self.colors = [[cmap(4*c_index), cmap(4*c_index+1), cmap(4*c_index+2)] for c_index in range(5)][-1]
-        self.out_dir = "data"
+        self.out_dir = "../../data"
 
     def forward(self, parameters: np.array) -> np.array:
         """Forward kinematics of given joint configuration
@@ -30,14 +30,11 @@ class RobotArm2d():
         y = t1 + l1 * np.sin(t2) + l2 * np.sin(t3 + t2) + l3 * np.sin(t4 + t3 + t2)
         return np.array([x, y])
 
-    def sample_priors(self, samples=1):
+    def sample_priors(self, samples: int = 1) -> np.array:
         """Normal distributed values of the joint parameters"""
-        if samples == 1:
-            return np.random.randn(4) * self.sigmas
-        else:
-            return np.random.randn(samples, 4) * self.sigmas
+        return np.random.randn(samples, 4) * self.sigmas
 
-    def inverse(self, tcp_pos: np.array, guess: np.array, epsilon=5e-2, max_steps=3000, lr=0.2) -> np.array:
+    def inverse(self, tcp_pos: np.array, guess: np.array, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> np.array:
         """Inverse kinematics with gradient descent
 
         :param tcp_pos: Position of the tool center point of the end effector as list or np.array of size (2)
@@ -47,8 +44,7 @@ class RobotArm2d():
         :param lr: Learn rate, float
         :return: Joint parameters as np.array of size (4)
         """
-        tcp_pos = np.array(tcp_pos)
-        guess = np.array(guess)
+        guess = guess[0]
         l1, l2, l3 = self.lengths
         # Gradient descent
         steps = 0
@@ -179,16 +175,17 @@ class RobotArm2d():
             for j in range(num_inverses):
                 guesses_array[i * num_inverses + j] = arm.inverse(tcp_array[i], arm.sample_priors())
         end = time.time()
-        print(f"Time taken: {end-start} seconds")
+        print(f"Time taken: {end-start:.3f} seconds for {num_tcp} forward configurations with {num_inverses} inverse configurations each.")
 
         # Saving
         self.save_inverse(tcp_array, guesses_array)
+
 
 if __name__ == "__main__":
     arm = RobotArm2d()
     # Samples to be generated
     num_forward = 100
-    num_inverses_each = 1000
+    num_inverses_each = 10
     arm.generate_data(arm.sample_priors(num_forward), num_inverses_each)
 
     # # Viz forward
