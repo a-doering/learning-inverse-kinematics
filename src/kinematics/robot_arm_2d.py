@@ -8,14 +8,14 @@ import time
 
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational"""
-    def __init__(self, lengths=[0.5, 0.5, 1], sigmas=[0.25, 0.5, 0.5, 0.5]):
+    def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5]):
         self.sigmas = np.array(sigmas)
         self.lengths = np.array(lengths)
         self.rangex = (-0.5, 2.5)  # (-0.35, 2.25)
         self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
         cmap = cm.tab20c
         self.colors = [[cmap(4*c_index), cmap(4*c_index+1), cmap(4*c_index+2)] for c_index in range(5)][-1]
-        self.out_dir = "data"
+        self.out_dir = "../../data"
 
     def forward(self, parameters: np.array) -> np.array:
         """Forward kinematics of given joint configuration
@@ -30,14 +30,11 @@ class RobotArm2d():
         y = t1 + l1 * np.sin(t2) + l2 * np.sin(t3 + t2) + l3 * np.sin(t4 + t3 + t2)
         return np.array([x, y])
 
-    def sample_priors(self, samples=1):
+    def sample_priors(self, samples: int = 1) -> np.array:
         """Normal distributed values of the joint parameters"""
-        if samples == 1:
-            return np.random.randn(4) * self.sigmas
-        else:
-            return np.random.randn(samples, 4) * self.sigmas
+        return np.random.randn(samples, 4) * self.sigmas
 
-    def inverse(self, tcp_pos: np.array, guess: np.array, epsilon=5e-2, max_steps=3000, lr=0.2) -> np.array:
+    def inverse(self, tcp_pos: np.array, guess: np.array, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> np.array:
         """Inverse kinematics with gradient descent
 
         :param tcp_pos: Position of the tool center point of the end effector as list or np.array of size (2)
@@ -47,8 +44,7 @@ class RobotArm2d():
         :param lr: Learn rate, float
         :return: Joint parameters as np.array of size (4)
         """
-        tcp_pos = np.array(tcp_pos)
-        guess = np.array(guess)
+        guess = guess[0]
         l1, l2, l3 = self.lengths
         # Gradient descent
         steps = 0
@@ -145,8 +141,8 @@ class RobotArm2d():
     def save_inverse(self, tcp_pos: np.array, guesses_array: np.array) -> None:
         """Saving of inverse kinematics
 
-        :param tcp_pos: Tool center point np.array of size (2)
-        :param guesses_array: Joint configurations that lead to tcp_pos, np.array of size (n, 4)
+        :param tcp_pos: Tool center point np.array of size (2) or (n, 2)
+        :param guesses_array: Joint configurations that lead to tcp_pos, np.array of size (m, 4) or (n*M, 4)
         """
         data = {
             "positions": tcp_pos,
@@ -156,30 +152,57 @@ class RobotArm2d():
         with open(self.out_dir + os.path.sep + "inverse.pickle", "wb") as file:
             pickle.dump(data, file)
 
+    def generate_data(self, priors: np.array, num_inverses: int) -> None:
+        """Generating training data: for each prior the tcp position will be
+        Calculated and for each tcp position num_inverses will be sampled
+
+        :param priors: Joint priors np.array of size (n, 4)
+        :param num_inverses: Amount of inverses to be created per tcp_position
+        """
+        # Calculating forward kinematics
+        if priors.ndim == 1:
+            num_tcp = 1
+        else:
+            num_tcp = priors.shape[0]
+        tcp_array = np.zeros((num_tcp, 2))
+        for i in range(num_tcp):
+            tcp_array[i] = self.forward(priors[i])
+
+        # Calculating inverse kinematics
+        guesses_array = np.zeros((num_tcp * num_inverses, 4))
+        start = time.time()
+        for i in range(num_tcp):
+            for j in range(num_inverses):
+                guesses_array[i * num_inverses + j] = arm.inverse(tcp_array[i], arm.sample_priors())
+        end = time.time()
+        print(f"Time taken: {end-start:.3f} seconds for {num_tcp} forward configurations with {num_inverses} inverse configurations each.")
+
+        # Saving
+        self.save_inverse(tcp_array, guesses_array)
+
 
 if __name__ == "__main__":
     arm = RobotArm2d()
-
     # Samples to be generated
-    n = 1000
+    num_forward = 100
+    num_inverses_each = 10
+    arm.generate_data(arm.sample_priors(num_forward), num_inverses_each)
 
-    # Viz forward
-    tcp_array = np.zeros((n, 2))
-    priors = arm.sample_priors(n)
-    for i in range(n):
-        tcp_array[i] = arm.forward(priors[i])
-    arm.save_forward(tcp_array, priors)
-    arm.viz_forward(tcp_array)
+    # # Viz forward
+    # tcp_array = np.zeros((n, 2))
+    # priors = arm.sample_priors(n)
+    # for i in range(n):
+    #     tcp_array[i] = arm.forward(priors[i])
+    # arm.save_forward(tcp_array, priors)
+    # arm.viz_forward(tcp_array)
 
-    # Viz and test inverse
-    theta = arm.sample_priors()
-    tcp_pos = np.array(arm.forward(theta))
-    start = time.time()
-    guesses_array = np.zeros((n, 4))
-    for i in range(n):
-        guesses_array[i] = arm.inverse(tcp_pos, arm.sample_priors())
-    print(time.time()-start)
-    arm.save_inverse(tcp_pos, guesses_array)
-    arm.viz_inverse(tcp_pos, guesses_array)
-
-    # TODO: create n forward configurations with m inverses each
+    # # Viz and test inverse
+    # theta = arm.sample_priors()
+    # tcp_pos = np.array(arm.forward(theta))
+    # start = time.time()
+    # guesses_array = np.zeros((n, 4))
+    # for i in range(n):
+    #     guesses_array[i] = arm.inverse(tcp_pos, arm.sample_priors())
+    # print(time.time()-start)
+    # arm.save_inverse(tcp_pos, guesses_array)
+    # arm.viz_inverse(tcp_pos, guesses_array)
