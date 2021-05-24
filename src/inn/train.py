@@ -18,13 +18,13 @@ def train(
     for epoch in range(epochs):
         loss_sum = 0
 
-        for thetas, positions in train_loader:
-            # thetas is what is called "x" in the Ardizzone et al. paper, and positions is "y"
+        for priors, positions in train_loader:
+            # priors is what is called "x" in the Ardizzone et al. paper, and positions is "y"
 
             optimizer.zero_grad()
 
             # the INN also returns the log Jacobian determinant, but this isn't used here
-            positions_pred, _ = inn(thetas)
+            positions_pred, _ = inn(priors)
             loss = F.mse_loss(positions_pred, positions)
 
             loss.backward()
