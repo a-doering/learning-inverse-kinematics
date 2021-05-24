@@ -1,3 +1,5 @@
+import csv
+
 import numpy as np
 import torch
 from torch.optim import Adam
@@ -55,6 +57,7 @@ def train(
     epochs: int = 10000000,
     lr_scheduler_patience: int = 10,
     val_set_portion: float = 0.1,  # portion of the dataset that will be used for validation
+    log_file: str = "losses.csv",
 ):
     inn = create_inn(X_DIM)
     optimizer = Adam(inn.parameters(), lr=lr)
@@ -120,6 +123,10 @@ def train(
 
             val_loss_mean = np.mean(val_loss_history, axis=0)
             print(f"[Epoch {epoch}] Val loss:   {np.mean(val_loss_mean)}, {val_loss_mean}")
+
+        # log losses
+        with open(log_file, 'a+', newline='') as file:
+            csv.writer(file).writerow([np.mean(train_loss_mean), np.mean(val_loss_mean)])
 
 
 if __name__ == "__main__":
