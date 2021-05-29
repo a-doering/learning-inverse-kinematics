@@ -114,6 +114,12 @@ class RobotArm2d():
         p3[:, 1] += l3 * np.sin(angle)
 
         fig = self.init_plot()
+        # Plot cross to mark tcp_pos
+        l_cross = 0.6
+        plt.plot([tcp_pos[0] - l_cross, tcp_pos[0] + l_cross], [tcp_pos[1], tcp_pos[1]], ls='-', c='gray', linewidth=.5, alpha=.5, zorder=-1)
+        plt.plot([tcp_pos[0], tcp_pos[0]], [tcp_pos[1] - l_cross, tcp_pos[1] + l_cross], ls='-', c='gray', linewidth=.5, alpha=.5, zorder=-1)
+
+        # Plot arms
         opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
         plt.quiver(p0[:, 0], p0[:, 1], (p1-p0)[:, 0], (p1-p0)[:, 1], **{'color': self.colors[0], **opts})
         plt.quiver(p1[:, 0], p1[:, 1], (p2-p1)[:, 0], (p2-p1)[:, 1], **{'color': self.colors[1], **opts})
@@ -196,12 +202,12 @@ if __name__ == "__main__":
     # arm.save_forward(tcp_array, priors)
     # arm.viz_forward(tcp_array)
 
-    # # Viz and test inverse
+    # Viz and test inverse
     # theta = arm.sample_priors()
-    # tcp_pos = np.array(arm.forward(theta))
+    # tcp_pos = np.array(arm.forward(theta[0]))
     # start = time.time()
-    # guesses_array = np.zeros((n, 4))
-    # for i in range(n):
+    # guesses_array = np.zeros((100, 4))
+    # for i in range(100):
     #     guesses_array[i] = arm.inverse(tcp_pos, arm.sample_priors())
     # print(time.time()-start)
     # arm.save_inverse(tcp_pos, guesses_array)
