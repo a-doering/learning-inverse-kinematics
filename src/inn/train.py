@@ -20,30 +20,6 @@ BACKWARD_MMD_FACTOR = 500
 RECONSTRUCTION_FACTOR = 1
 
 
-def loss_forward_mmd(positions_pred: torch.tensor, positions: torch.tensor, position_dim: int, z_dim: int):
-    # remove gradients wrt positions for latent loss
-    output_block_grad = torch.cat((positions_pred[:, :z_dim], positions_pred[:, -position_dim:].data), dim=1)
-
-    l_forward_fit = FORWARD_FIT_FACTOR * mmd.l2_fit(positions_pred[:, z_dim:], positions[:, z_dim:])
-    l_forward_mmd = FORWARD_MMD_FACTOR * torch.mean(mmd.forward_mmd(output_block_grad, positions))
-
-    return l_forward_fit, l_forward_mmd
-
-
-def loss_backward_mmd(priors: torch.tensor, positions: torch.tensor, inn: nn.Module):
-    # TODO use jac=False ?
-    priors_pred, _ = inn(positions, rev=True)
-    backward_mmd = mmd.backward_mmd(priors, priors_pred)
-    return BACKWARD_MMD_FACTOR * torch.mean(backward_mmd)
-
-
-def loss_reconstruction(positions_pred: torch.tensor, priors: torch.tensor, inn: nn.Module, position_dim: int, z_dim: int):
-    cat_inputs = [positions_pred[:, :z_dim], positions_pred[:, -position_dim:]]
-    # TODO use jac=False ?
-    x_reconstructed, _ = inn(torch.cat(cat_inputs, 1), rev=True)
-    return RECONSTRUCTION_FACTOR * mmd.l2_fit(x_reconstructed, priors)
-
-
 def run_epoch(
     inn: nn.Module,
     data_loader: DataLoader,
@@ -58,14 +34,24 @@ def run_epoch(
         noise_batch = torch.randn(batch_size, z_dim)
         positions = torch.cat((noise_batch, positions), dim=1)
 
-        # TODO use jac=False ?
+        # TODO use jac=False for inn(...)?
+
+        # forward loss
         positions_pred, _ = inn(priors)
+        # remove gradients wrt positions
+        output_block_grad = torch.cat((positions_pred[:, :z_dim], positions_pred[:, -position_dim:].data), dim=1)
+        loss_forward_fit = FORWARD_FIT_FACTOR * mmd.l2_fit(positions_pred[:, z_dim:], positions[:, z_dim:])
+        loss_forward_mmd = FORWARD_MMD_FACTOR * torch.mean(mmd.forward_mmd(output_block_grad, positions))
 
-        batch_losses = []
-        batch_losses.extend(loss_forward_mmd(positions_pred, positions, position_dim, z_dim))
-        batch_losses.append(loss_backward_mmd(priors, positions, inn))
-        batch_losses.append(loss_reconstruction(positions_pred.data, priors, inn, position_dim, z_dim))
+        # backward loss
+        priors_pred, _ = inn(positions, rev=True)
+        loss_backward_mmd = BACKWARD_MMD_FACTOR * torch.mean(mmd.backward_mmd(priors, priors_pred))
 
+        # reconstruction loss
+        x_reconstructed, _ = inn(positions_pred.data, rev=True)
+        loss_reconstruction = RECONSTRUCTION_FACTOR * mmd.l2_fit(x_reconstructed, priors)
+
+        batch_losses = [loss_forward_fit, loss_forward_mmd, loss_backward_mmd, loss_reconstruction]
         loss_history.append([batch_loss.item() for batch_loss in batch_losses])
 
         total_batch_loss = sum(batch_losses)
