@@ -1,4 +1,5 @@
 import csv
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -44,6 +45,39 @@ def loss_reconstruction(positions_pred: torch.tensor, priors: torch.tensor, inn:
     return RECONSTRUCTION_FACTOR * mmd.l2_fit(x_reconstructed, priors)
 
 
+def run_epoch(
+    inn: nn.Module,
+    data_loader: DataLoader,
+    optimizer: Optional[Adam],
+    batch_size: int,
+    position_dim: int,
+    z_dim: int,
+) -> List[float]:
+    loss_history = []
+
+    for priors, positions in data_loader:
+        noise_batch = torch.randn(batch_size, z_dim)
+        positions = torch.cat((noise_batch, positions), dim=1)
+
+        # TODO use jac=False ?
+        positions_pred, _ = inn(priors)
+
+        batch_losses = []
+        batch_losses.extend(loss_forward_mmd(positions_pred, positions, position_dim, z_dim))
+        batch_losses.append(loss_backward_mmd(priors, positions, inn))
+        batch_losses.append(loss_reconstruction(positions_pred.data, priors, inn, position_dim, z_dim))
+
+        loss_history.append([batch_loss.item() for batch_loss in batch_losses])
+
+        total_batch_loss = sum(batch_losses)
+
+        if optimizer:
+            total_batch_loss.backward()
+            optimizer.step()
+
+    return np.mean(loss_history, axis=0)
+
+
 def train(
     batch_size: int = 128,
     lr: float = 1e-6,
@@ -69,58 +103,26 @@ def train(
         # Training
         ###########
 
-        train_loss_history = []
         inn.train()
 
-        for priors, positions in train_loader:
-            noise_batch = torch.randn(batch_size, z_dim)
-            positions = torch.cat((noise_batch, positions), dim=1)
+        train_loss = run_epoch(inn, train_loader, optimizer, batch_size, position_dim, z_dim)
 
-            # TODO use jac=False ?
-            positions_pred, _ = inn(priors)
-
-            batch_losses = []
-            batch_losses.extend(loss_forward_mmd(positions_pred, positions, position_dim, z_dim))
-            batch_losses.append(loss_backward_mmd(priors, positions, inn))
-            batch_losses.append(loss_reconstruction(positions_pred.data, priors, inn, position_dim, z_dim))
-
-            train_loss_history.append([batch_loss.item() for batch_loss in batch_losses])
-
-            total_batch_loss = sum(batch_losses)
-            total_batch_loss.backward()
-            optimizer.step()
-
-        train_loss_mean = np.mean(train_loss_history, axis=0)
-        lr_scheduler.step(np.mean(train_loss_mean))
-        print(f"[Epoch {epoch}] Train loss: {np.mean(train_loss_mean)}, {train_loss_mean}")
+        lr_scheduler.step(np.mean(train_loss))
+        print(f"[Epoch {epoch}] Train loss: {np.mean(train_loss)}, {train_loss}")
 
         # Validation
         #############
 
-        val_loss_history = []
         inn.eval()
 
         with torch.no_grad():
-            for priors, positions in val_loader:
-                noise_batch = torch.randn(batch_size, z_dim)
-                positions = torch.cat((noise_batch, positions), dim=1)
+            val_loss = run_epoch(inn, val_loader, None, batch_size, position_dim, z_dim)
 
-                # TODO use jac=False ?
-                positions_pred, _ = inn(priors)
-
-                batch_losses = []
-                batch_losses.extend(loss_forward_mmd(positions_pred, positions, position_dim, z_dim))
-                batch_losses.append(loss_backward_mmd(priors, positions, inn))
-                batch_losses.append(loss_reconstruction(positions_pred.data, priors, inn, position_dim, z_dim))
-
-                val_loss_history.append([batch_loss.item() for batch_loss in batch_losses])
-
-        val_loss_mean = np.mean(val_loss_history, axis=0)
-        print(f"[Epoch {epoch}] Val loss:   {np.mean(val_loss_mean)}, {val_loss_mean}")
+        print(f"[Epoch {epoch}] Val loss:   {np.mean(val_loss)}, {val_loss}")
 
         # log losses
         with open(log_file, 'a+', newline='') as file:
-            csv.writer(file).writerow([np.mean(train_loss_mean), np.mean(val_loss_mean)])
+            csv.writer(file).writerow([np.mean(train_loss), np.mean(val_loss)])
 
 
 if __name__ == "__main__":
