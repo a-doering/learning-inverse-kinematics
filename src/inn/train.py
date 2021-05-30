@@ -21,12 +21,11 @@ RECONSTRUCTION_FACTOR = 1
 
 
 def loss_forward_mmd(positions_pred: torch.tensor, positions: torch.tensor, position_dim: int, z_dim: int):
-    # Shorten output, and remove gradients wrt y, for latent loss
+    # remove gradients wrt positions for latent loss
     output_block_grad = torch.cat((positions_pred[:, :z_dim], positions_pred[:, -position_dim:].data), dim=1)
-    y_short = torch.cat((positions[:, :z_dim], positions[:, -position_dim:]), dim=1)
 
     l_forward_fit = FORWARD_FIT_FACTOR * mmd.l2_fit(positions_pred[:, z_dim:], positions[:, z_dim:])
-    l_forward_mmd = FORWARD_MMD_FACTOR * torch.mean(mmd.forward_mmd(output_block_grad, y_short))
+    l_forward_mmd = FORWARD_MMD_FACTOR * torch.mean(mmd.forward_mmd(output_block_grad, positions))
 
     return l_forward_fit, l_forward_mmd
 
