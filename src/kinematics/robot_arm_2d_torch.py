@@ -29,7 +29,8 @@ class RobotArm2d():
         :return current_pos: Current position at joint in 2d, size: (n, 2)
         :return next_pos: Next position at end of arm in 2d, size: (n, 2)
         """
-        next_pos = torch.FloatTensor(current_pos)
+        # Cloning is required to not share underlaying data
+        next_pos = current_pos.clone()
         angle = torch.FloatTensor(angle)
         next_pos[:, 0] += length * torch.cos(angle)
         next_pos[:, 1] += length * torch.sin(angle)
@@ -46,6 +47,10 @@ class RobotArm2d():
         _, p2 = self.advance_joint(p1, self.lengths[1], thetas[:, 1] + thetas[:, 2])
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
         return p3
+
+    def inverse(self, pos: torch.FloatTensor, guesses: torch.FloatTensor, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> torch.FloatTensor:
+        # TODO: implement batch vectorized torch inverse
+        raise NotImplementedError
 
     def init_plot(self) -> plt.figure:
         """Initialize matplotlib figure"""
@@ -64,10 +69,60 @@ class RobotArm2d():
         plt.title(f"Forward Kinematics with {pos.shape[0]} samples")
         plt.show()
 
+    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor) -> None:
+        """Visualization of inverse kinematic configurations for end effector position
+
+        :param pos: End effector position, size (n, 2), use n=1 to get informative plots
+        :param thetas: Joint parameters, size (n, 4)
+        """
+        # Calculate positions of each joint
+        p0 = torch.stack([torch.zeros((thetas.shape[0])), thetas[:, 0]], axis=1)
+        _, p1 = self.advance_joint(p0, self.lengths[0], thetas[:, 1])
+        _, p2 = self.advance_joint(p1, self.lengths[1], thetas[:, 1] + thetas[:, 2])
+        _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
+
+        # Plot cross to mark end effector position
+        l_cross = 0.6
+        fig = self.init_plot()
+        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
+        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
+
+        # Plot arms
+        opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
+        plt.quiver(p0[:, 0], p0[:, 1], (p1-p0)[:, 0], (p1-p0)[:, 1], **{'color': self.colors[0], **opts})
+        plt.quiver(p1[:, 0], p1[:, 1], (p2-p1)[:, 0], (p2-p1)[:, 1], **{'color': self.colors[1], **opts})
+        plt.quiver(p2[:, 0], p2[:, 1], (p3-p2)[:, 0], (p3-p2)[:, 1], **{'color': self.colors[2], **opts})
+        plt.xlim(*self.rangex)
+        plt.ylim(*self.rangey)
+        plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
+        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples")
+        plt.show()
+
+    def generate_data(self, thetas: torch.FloatTensor, num_inverses: int) -> None:
+        """Generate training data: for each prior the end effector position is
+        Calculated and for each end effector position num_inverses will be sampled
+
+        :param thetas: Joint parameters, size (n, 4)
+        :param num_inverses: Amount of inverses to be created per end effector position
+        """
+        pos = self.forward(thetas)
+        num_positions = thetas.shape[0]
+        guesses = torch.zeros((num_positions * num_inverses, 4))
+        # TODO: finish after implementing inverse kinematics
+        raise NotImplementedError
+
 
 if __name__ == "__main__":
     arm = RobotArm2d()
+    num_forward = 10
+    num_inverse_each = 100
     # Viz forward
-    priors = arm.sample_priors(1)
+    priors = arm.sample_priors(num_forward)
     pos = arm.forward(priors)
     arm.viz_forward(pos)
+    # Viz inverse
+    arm.viz_inverse(pos, priors)
+    # # Viz and test inverse
+    # pos = arm.forward(arm.sample_priors(1))
+    # guesses = arm.inverse(pos, arm.sample_priors(num_inverse_each))
+    # arm.viz_inverse(pos, guesses)
