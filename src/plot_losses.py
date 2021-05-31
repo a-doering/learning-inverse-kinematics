@@ -3,7 +3,7 @@ import csv
 from matplotlib import pyplot as plt
 
 
-LOG_FILE = "losses.csv"
+LOG_FILE = "log/losses.csv"
 
 # (column in the .csv file, label in the plot)
 TRAIN_LOSS = (0, "Train Loss")

@@ -1,5 +1,7 @@
 import csv
-from typing import List, Optional, Tuple
+import os
+from os import path
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -74,9 +76,15 @@ def train(
     lr: float = 1e-6,
     epochs: int = 10000000,
     lr_scheduler_patience: int = 10,
-    val_set_portion: float = 0.1,  # portion of the dataset that will be used for validation
-    log_file: str = "losses.csv",
+    val_set_portion: float = 0.1,
+    log_path: str = "log",
+    checkpoint_path: Optional[str] = None,
 ):
+    """
+    val_set_portion: Portion of the dataset that will be used for validation
+    log_path: Directory where losses and checkpoints will be written
+    checkpoint_path: Path to a checkpoint to load
+    """
     # prepare dataset
     dataset, priors_dim, position_dim = load_dataset()
     z_dim = priors_dim - position_dim
@@ -89,7 +97,18 @@ def train(
     optimizer = Adam(inn.parameters(), lr=lr)
     lr_scheduler = ReduceLROnPlateau(optimizer, patience=lr_scheduler_patience, verbose=True)
 
-    for epoch in range(epochs):
+    # load checkpoint
+    if checkpoint_path:
+        checkpoint = torch.load(checkpoint_path)
+        starting_epoch = checkpoint["epoch"] + 1
+        inn.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        print(f"Resuming at checkpoint '{checkpoint_path}', epoch {starting_epoch}")
+    else:
+        starting_epoch = 0
+
+    for epoch in range(starting_epoch, epochs):
 
         # Training
         ###########
@@ -111,9 +130,22 @@ def train(
 
         print(f"[Epoch {epoch}] Val loss:   {val_loss}, {val_loss_terms}")
 
+        # Log
+        ######
+
         # log losses
-        with open(log_file, 'a+', newline='') as file:
+        os.makedirs(log_path, exist_ok=True)
+        with open(path.join(log_path, "losses.csv"), 'a+', newline='') as file:
             csv.writer(file).writerow([train_loss, *train_loss_terms, val_loss, *val_loss_terms])
+
+        # save model and other data required to resume training
+        checkpoint = {
+            "epoch": epoch,
+            "model": inn.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "lr_scheduler": lr_scheduler.state_dict(),
+        }
+        torch.save(checkpoint, path.join(log_path, f"{epoch}_checkpoint.pt"))
 
 
 if __name__ == "__main__":
