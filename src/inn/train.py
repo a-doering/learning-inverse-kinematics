@@ -1,5 +1,5 @@
 import csv
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -27,7 +27,12 @@ def run_epoch(
     batch_size: int,
     position_dim: int,
     z_dim: int,
-) -> List[float]:
+) -> Tuple[float, Tuple[float, float, float, float]]:
+    """
+    `optimizer` should be `None` during validation.
+    :return: 1. The average loss in this epoch
+             2. The individual, weighted loss terms (forward L2 fit, forward MMD, backward MMD, reconstruction L2 fit)
+    """
     loss_history = []
 
     for priors, positions in data_loader:
@@ -60,7 +65,8 @@ def run_epoch(
             total_batch_loss.backward()
             optimizer.step()
 
-    return np.mean(loss_history, axis=0)
+    loss_mean = np.mean(loss_history, axis=0)
+    return sum(loss_mean), tuple(loss_mean)
 
 
 def train(
@@ -90,10 +96,10 @@ def train(
 
         inn.train()
 
-        train_loss = run_epoch(inn, train_loader, optimizer, batch_size, position_dim, z_dim)
+        train_loss, train_loss_terms = run_epoch(inn, train_loader, optimizer, batch_size, position_dim, z_dim)
 
-        lr_scheduler.step(np.mean(train_loss))
-        print(f"[Epoch {epoch}] Train loss: {np.mean(train_loss)}, {train_loss}")
+        lr_scheduler.step(train_loss)
+        print(f"[Epoch {epoch}] Train loss: {train_loss}, {train_loss_terms}")
 
         # Validation
         #############
@@ -101,13 +107,13 @@ def train(
         inn.eval()
 
         with torch.no_grad():
-            val_loss = run_epoch(inn, val_loader, None, batch_size, position_dim, z_dim)
+            val_loss, val_loss_terms = run_epoch(inn, val_loader, None, batch_size, position_dim, z_dim)
 
-        print(f"[Epoch {epoch}] Val loss:   {np.mean(val_loss)}, {val_loss}")
+        print(f"[Epoch {epoch}] Val loss:   {val_loss}, {val_loss_terms}")
 
         # log losses
         with open(log_file, 'a+', newline='') as file:
-            csv.writer(file).writerow([np.mean(train_loss), np.mean(val_loss)])
+            csv.writer(file).writerow([train_loss, *train_loss_terms, val_loss, *val_loss_terms])
 
 
 if __name__ == "__main__":
