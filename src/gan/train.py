@@ -1,9 +1,7 @@
 from torch.utils.data import DataLoader
-
 import numpy as np
 from dataset import InverseDataset2d
 from model import Generator, Discriminator
-from torch.autograd import Variable
 import torch
 
 # TODO: select parameters
@@ -42,32 +40,28 @@ def train():
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
     for epoch in range(num_epochs):
-        for iter, (thetas, targets) in enumerate(dataloader):
+        for iter, (thetas_real, pos_real) in enumerate(dataloader):
 
             # Adversarial ground truths
-            valid = Variable(Tensor(batch_size, 1).fill_(1.0), requires_grad=False)
-            fake = Variable(Tensor(batch_size, 1).fill_(0.0), requires_grad=False)
-
-            # Configure input
-            real_data = Variable(thetas.type(Tensor))
-            targets = Variable(targets.type(Tensor))
+            valid = Tensor(batch_size, 1, requires_grad=False).fill_(1.0)
+            fake = Tensor(batch_size, 1, requires_grad=False).fill_(0.0)
 
             # Train Generator
             # ---------------------
             optimizer_G.zero_grad()
 
             # Sample noise as generator input
-            z = Variable(Tensor(np.random.normal(0, 1, (batch_size, latent_dim))))
-            # Target generation can be a random position that can be achieved using forward kinematics of random input
+            z = Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))
+            # Generation of positions can be a random position that can be achieved using forward kinematics of random input
             # TODO: replace with real forward from robot_arm_2d_torch, this will currently not work
             # TODO: Merge the kinematics branch into this gan branch
-            gen_targets = Variable(Tensor(forward(sample_priors(batch_size))))
+            pos_gen = forward(sample_priors(batch_size))
 
             # Generate batch of thetas
-            gen_thetas = generator(z, gen_targets)
+            gen_thetas = generator(z, pos_gen)
 
             # Calculate loss
-            validity = discriminator(gen_thetas, gen_targets)
+            validity = discriminator(gen_thetas, pos_gen)
             loss_G = adversarial_loss(validity, valid)
 
             loss_G.backward()
@@ -78,11 +72,11 @@ def train():
             optimizer_D.zero_grad()
 
             # Loss for real thetas
-            validity_real = discriminator(real_data, targets)
+            validity_real = discriminator(thetas_real, pos_real)
             loss_D_real = adversarial_loss(validity_real, valid)
 
             # Loss for generated (fake) thetas
-            validity_fake = discriminator(gen_thetas.detach(), gen_targets)
+            validity_fake = discriminator(gen_thetas.detach(), pos_gen)
             loss_D_fake = adversarial_loss(validity_fake, fake)
 
             # Total discriminator loss
