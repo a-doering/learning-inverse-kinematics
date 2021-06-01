@@ -32,7 +32,8 @@ class Generator(nn.Module):
             *block(256, 512),
             *block(512, 1024),
             nn.Linear(1024, num_thetas),
-            nn.Tanh()
+            # Tanh would limit the resulting space so that not all radian values can be
+            # nn.Tanh()
         )
 
     def forward(self, z, targets):
