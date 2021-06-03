@@ -90,17 +90,19 @@ class RobotArm2d():
         _, p2 = self.advance_joint(p1, self.lengths[1], thetas[:, 1] + thetas[:, 2])
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
 
-        # Plot cross to mark end effector position
-        l_cross = 0.6
         fig = self.init_plot()
-        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
-        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
 
         # Plot arms
         opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
         plt.quiver(p0[:, 0], p0[:, 1], (p1-p0)[:, 0], (p1-p0)[:, 1], **{'color': self.colors[0], **opts})
         plt.quiver(p1[:, 0], p1[:, 1], (p2-p1)[:, 0], (p2-p1)[:, 1], **{'color': self.colors[1], **opts})
         plt.quiver(p2[:, 0], p2[:, 1], (p3-p2)[:, 0], (p3-p2)[:, 1], **{'color': self.colors[2], **opts})
+
+        # Plot cross to mark end effector position
+        l_cross = 0.6
+        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
+        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
+
         plt.xlim(*self.rangex)
         plt.ylim(*self.rangey)
         plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
@@ -111,7 +113,6 @@ class RobotArm2d():
                 fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
         if show:
             plt.show()
-
 
     def generate_data(self, thetas: torch.FloatTensor, num_inverses: int) -> None:
         """Generate training data: for each prior the end effector position is
