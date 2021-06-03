@@ -113,6 +113,7 @@ class RobotArm2d():
                 fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
         if show:
             plt.show()
+        plt.close(fig)
 
     def generate_data(self, thetas: torch.FloatTensor, num_inverses: int) -> None:
         """Generate training data: for each prior the end effector position is
