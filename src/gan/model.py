@@ -13,12 +13,7 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        # TODO: figure out embedding for continuous "labels"/targets
-        # Alternatively discretize the targets
-        # This is how it could look like for categorical data
-        # self.label_embedding = nn.Embedding(opt.n_classes, opt.n_classes)
-        # same in discriminator
-
+        # TODO: figure out best embedding for continuous "labels"/targets
         def block(in_features: int, out_features: int, normalize: bool = True):
             layers = [nn.Linear(in_features, out_features)]
             if normalize:
@@ -32,7 +27,7 @@ class Generator(nn.Module):
             *block(256, 512),
             *block(512, 1024),
             nn.Linear(1024, num_thetas),
-            # Tanh would limit the resulting space so that not all radian values can be
+            # Tanh would limit the resulting space so that not all radian values can be created
             # nn.Tanh()
         )
 
@@ -48,11 +43,6 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         # TODO: figure out embedding for continuous "labels"/targets
-        # Alternatively discretize the targets
-        # This is how it could look like for categorical data
-        # self.label_embedding = nn.Embedding(opt.n_classes, opt.n_classes)
-        # same in generator
-
         self.model = nn.Sequential(
             nn.Linear(num_thetas + num_targets, 512),
             nn.ReLU(inplace=True),
