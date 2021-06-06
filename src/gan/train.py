@@ -5,6 +5,7 @@ from kinematics.robot_arm_2d_torch import RobotArm2d
 from torch.utils.data import DataLoader
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator
+from tqdm import tqdm
 
 # Set random seeds
 seed = 123456
@@ -54,7 +55,7 @@ def train():
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
     arm = RobotArm2d()
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         for iter, (thetas_real, pos_real) in enumerate(dataloader):
 
             # Adversarial ground truths
@@ -98,7 +99,6 @@ def train():
             optimizer_D.step()
             batches_done += 1
 
-            print(f"Epoch: {epoch}/{num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
             if batches_done % sample_interval == 0:
                 # Tensor of size (batch_size, 2) with always the same position
                 # pos_same = Tensor(batch_size, 2).fill_(1.0)
@@ -108,3 +108,5 @@ def train():
                 # print(z.shape)
                 # arm.viz_inverse(pos_same, generator(z, pos_same).detach(), fig_name=f"{batches_done}")
                 arm.viz_inverse(pos_real, generator(z, pos_real).detach(), fig_name=f"{batches_done}")
+                print(f"Epoch: {epoch}/{num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
+
