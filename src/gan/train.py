@@ -1,10 +1,21 @@
+import torch
+import numpy as np
+import random
 from kinematics.robot_arm_2d_torch import RobotArm2d
 from torch.utils.data import DataLoader
-import numpy as np
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator
-import torch
 
+# Set random seeds
+seed = 123456
+torch.backends.cudnn.deterministic = True
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+# Device configuration
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#print(f"Seed is {torch.initial_seed()}")
 
 # TODO: select parameters
 lr = 5e-4
