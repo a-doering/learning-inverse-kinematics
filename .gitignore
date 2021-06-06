@@ -9,3 +9,7 @@ __pycache__/
 
 # generated training data
 /data/
+# Visualizations
+/visualizations/
+# Experiment tracking
+/wandb/

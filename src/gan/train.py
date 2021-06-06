@@ -6,6 +6,9 @@ from torch.utils.data import DataLoader
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator
 from tqdm import tqdm
+import wandb
+
+#wandb.login()
 
 # Set random seeds
 seed = 123456
@@ -18,14 +21,22 @@ torch.cuda.manual_seed_all(seed)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #print(f"Seed is {torch.initial_seed()}")
 
-# TODO: select parameters
-lr = 5e-4
+wandb.init(
+    project="pytorch-test",
+    name="first-test",
+    tags=["playground"],
+)
+
+
+wandb.config.lr = 5e-4
 latent_dim = 3
 clip_value = 0.01
 n_discriminator = 5
-num_epochs = 500
+num_epochs = 100
 sample_interval = 100
 batch_size = 64
+
+
 
 dataloader = DataLoader(
     InverseDataset2d(
@@ -49,8 +60,8 @@ def train():
         adversarial_loss.cuda()
 
     # Optimizer
-    optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=lr)
-    optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=lr)
+    optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=wandb.config.lr)
+    optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=wandb.config.lr)
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
@@ -110,3 +121,8 @@ def train():
                 arm.viz_inverse(pos_real, generator(z, pos_real).detach(), fig_name=f"{batches_done}")
                 print(f"Epoch: {epoch}/{num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
 
+            wandb.log({
+                "Epoch": epoch,
+                "loss_D": loss_D,
+                "loss_G": loss_G
+            })
