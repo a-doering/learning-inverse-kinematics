@@ -13,11 +13,13 @@ import wandb
 config = dict(
     seed=123456,
     lr=5e-4,
-    latent_dim=3,
     n_discriminator=5,
     num_epochs=30,
     sample_interval=100,
-    batch_size=64
+    batch_size=64,
+    num_thetas=4,
+    dim_pos=2,
+    latent_dim=3
 )
 
 # Set random seeds
@@ -33,7 +35,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Setup wandb for model tracking
 wandb.init(
     project="pytorch-test",
-    name="second-test",
+    name="fifth-test",
     tags=["playground"],
     config=config
 )
@@ -51,8 +53,8 @@ dataloader = DataLoader(
 
 
 def train():
-    generator = Generator()
-    discriminator = Discriminator()
+    generator = Generator(num_thetas=config.num_thetas, dim_pos=config.dim_pos, latent_dim=config.latent_dim)
+    discriminator = Discriminator(num_thetas=config.num_thetas, dim_pos=config.dim_pos)
     adversarial_loss = torch.nn.MSELoss()
 
     cuda = True if torch.cuda.is_available() else False
