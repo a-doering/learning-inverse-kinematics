@@ -8,10 +8,20 @@ from gan.model import Generator, Discriminator
 from tqdm import tqdm
 import wandb
 
-#wandb.login()
+
+# Configuration
+config = dict(
+    seed=123456,
+    lr=5e-4,
+    latent_dim=3,
+    n_discriminator=5,
+    num_epochs=30,
+    sample_interval=100,
+    batch_size=64
+)
 
 # Set random seeds
-seed = 123456
+seed = config["seed"]
 torch.backends.cudnn.deterministic = True
 random.seed(seed)
 np.random.seed(seed)
@@ -19,30 +29,22 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
 # Device configuration
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#print(f"Seed is {torch.initial_seed()}")
 
+# Setup wandb for model tracking
 wandb.init(
     project="pytorch-test",
-    name="first-test",
+    name="second-test",
     tags=["playground"],
+    config=config
 )
-
-
-wandb.config.lr = 5e-4
-latent_dim = 3
-clip_value = 0.01
-n_discriminator = 5
-num_epochs = 100
-sample_interval = 100
-batch_size = 64
-
-
+# Rename for easier access
+config = wandb.config
 
 dataloader = DataLoader(
     InverseDataset2d(
         path="data/inverse.pickle"
     ),
-    batch_size=batch_size,
+    batch_size=config.batch_size,
     shuffle=True,
     drop_last=True
 )
@@ -60,27 +62,27 @@ def train():
         adversarial_loss.cuda()
 
     # Optimizer
-    optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=wandb.config.lr)
-    optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=wandb.config.lr)
+    optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
+    optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=config.lr)
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
     arm = RobotArm2d()
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in tqdm(range(config.num_epochs)):
         for iter, (thetas_real, pos_real) in enumerate(dataloader):
 
             # Adversarial ground truths
-            valid = Tensor(batch_size, 1).fill_(1.0)
-            fake = Tensor(batch_size, 1).fill_(0.0)
+            valid = Tensor(config.batch_size, 1).fill_(1.0)
+            fake = Tensor(config.batch_size, 1).fill_(0.0)
 
             # Train Generator
             # ---------------------
             optimizer_G.zero_grad()
 
             # Sample noise as generator input
-            z = Tensor(np.random.normal(0, 1, (batch_size, latent_dim)))
+            z = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
-            pos_gen = arm.forward(arm.sample_priors(batch_size))
+            pos_gen = arm.forward(arm.sample_priors(config.batch_size))
 
             # Generate batch of thetas
             thetas_gen = generator(z, pos_real)
@@ -110,7 +112,7 @@ def train():
             optimizer_D.step()
             batches_done += 1
 
-            if batches_done % sample_interval == 0:
+            if batches_done % config.sample_interval == 0:
                 # Tensor of size (batch_size, 2) with always the same position
                 # pos_same = Tensor(batch_size, 2).fill_(1.0)
                 # pos_same[:, 0] *= 2
@@ -119,7 +121,7 @@ def train():
                 # print(z.shape)
                 # arm.viz_inverse(pos_same, generator(z, pos_same).detach(), fig_name=f"{batches_done}")
                 arm.viz_inverse(pos_real, generator(z, pos_real).detach(), fig_name=f"{batches_done}")
-                print(f"Epoch: {epoch}/{num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
+                print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
 
             wandb.log({
                 "Epoch": epoch,
