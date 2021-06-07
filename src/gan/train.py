@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import random
@@ -16,11 +17,13 @@ config = dict(
     n_discriminator=5,
     num_epochs=30,
     sample_interval=100,
+    save_model_interval=200,
     batch_size=64,
     num_thetas=4,
     dim_pos=2,
-    latent_dim=3
+    latent_dim=3,
 )
+# TODO: decide if saving every n epochs or every m samples or batches
 
 # Set random seeds
 seed = config["seed"]
@@ -35,7 +38,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Setup wandb for model tracking
 wandb.init(
     project="pytorch-test",
-    name="fifth-test",
+    name="sixth-test",
     tags=["playground"],
     config=config
 )
@@ -57,6 +60,10 @@ def train():
     discriminator = Discriminator(num_thetas=config.num_thetas, dim_pos=config.dim_pos)
     adversarial_loss = torch.nn.MSELoss()
 
+    # Print model to log structure
+    print(generator)
+    print(discriminator)
+
     cuda = True if torch.cuda.is_available() else False
     if cuda:
         generator.cuda()
@@ -66,6 +73,10 @@ def train():
     # Optimizer
     optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
     optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=config.lr)
+
+    # Log models
+    wandb.watch(generator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
+    wandb.watch(discriminator, optimizer_D, log="all", log_freq=10)
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
@@ -128,5 +139,48 @@ def train():
             wandb.log({
                 "Epoch": epoch,
                 "loss_D": loss_D,
+                "loss_D_real": loss_D_real,
+                "loss_D_fake": loss_D_fake,
                 "loss_G": loss_G
             })
+            # TODO: log images
+            # 'examples': [wandb.Image(i) for i in fixed_fake_image]
+
+            if batches_done % config.save_model_interval == 0:
+                checkpoint = {
+                    "epoch": epoch,
+                    "generator": generator.state_dict(),
+                    "optimizer_G": optimizer_G.state_dict(),
+                    "loss_G": loss_G,
+                    "discriminator": discriminator.state_dict(),
+                    "optimizer_D": optimizer_D.state_dict(),
+                    "loss_G": loss_G,
+                    "loss_D": loss_D,
+                    "loss_D_real": loss_D_real,
+                    "loss_D_fake": loss_D_fake
+                }
+                log_path = os.path.join(wandb.run.dir, "checkpoints")
+                os.makedirs(log_path, exist_ok=True)
+                torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint.pth"))
+                # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
+                print(f"{epoch} epoch: saved model")
+
+    # Save parameters of last epoch
+    checkpoint = {
+        "epoch": epoch,
+        "generator": generator.state_dict(),
+        "optimizer_G": optimizer_G.state_dict(),
+        "loss_G": loss_G,
+        "discriminator": discriminator.state_dict(),
+        "optimizer_D": optimizer_D.state_dict(),
+        "loss_G": loss_G,
+        "loss_D": loss_D,
+        "loss_D_real": loss_D_real,
+        "loss_D_fake": loss_D_fake
+    }
+    log_path = os.path.join(wandb.run.dir, "checkpoints")
+    os.makedirs(log_path, exist_ok=True)
+    # TODO: investigate difference of saving file in wandb dir with torch vs wandb
+    torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint.pth"))
+    # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
+    print(f"{epoch} epoch: saved model")
