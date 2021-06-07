@@ -53,6 +53,18 @@ class RobotArm2d():
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
         return p3
 
+    def distance_euclidean(self, pos_target: torch.FloatTensor, pos: torch.FloatTensor) -> float:
+        """Calculate the euclidean distance between all the positions and the target position
+
+        :param pos: Target end effector position, size (1, 2), if provided (n, 2) it will be converted to (1, 2)
+        :param thetas: Tensor of end effector positions, size (n, 2)
+        :return distance: Mean distance of all positions to target position
+        """
+        # Take only first position of target in case multiple are provided
+        pos_target = pos_target[:1, :]
+        dim = pos.shape[0]
+        return torch.sum(torch.cdist(pos_target, pos, p=2)) / dim
+
     def inverse(self, pos: torch.FloatTensor, guesses: torch.FloatTensor, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> torch.FloatTensor:
         # TODO: implement batch vectorized torch inverse
         raise NotImplementedError
@@ -106,7 +118,8 @@ class RobotArm2d():
         plt.xlim(*self.rangex)
         plt.ylim(*self.rangey)
         plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
-        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples")
+        # Euclidean position is only calculated to the first entry of pos, while target crosses for all will be displayed
+        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {self.distance_euclidean(pos, p3):.3f}")
 
         if save:
             for format in viz_format:
@@ -137,9 +150,6 @@ if __name__ == "__main__":
     priors = arm.sample_priors(num_forward)
     pos = arm.forward(priors)
     arm.viz_forward(pos)
-    # Viz inverse
-    arm.viz_inverse(pos, priors)
     # # Viz and test inverse
-    # pos = arm.forward(arm.sample_priors(1))
     # guesses = arm.inverse(pos, arm.sample_priors(num_inverse_each))
     # arm.viz_inverse(pos, guesses)

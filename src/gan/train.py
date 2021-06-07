@@ -138,11 +138,14 @@ def train():
                 print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
                 # TODO: improve image logging, perhaps return fig from inverse?
                 # TODO: log all visualizations in the same dir? Create gif?
+                mean_euclidean = arm.distance_euclidean(pos_real, arm.forward(generated_test_batch))
+                # TODO: add a euclidean for pairwise distance and not only all to one
                 wandb.log({
                     "plot": wandb.Image(os.path.join(arm.viz_dir, f"{batches_done}.png")),
-                    "generated_batch": generated_test_batch})
+                    "generated_batch": generated_test_batch,
+                    "mean_euclidean": mean_euclidean
+                })
                 # TODO: log input for generated data to see how well it behaves
-            
             wandb.log({
                 "Epoch": epoch,
                 "loss_D": loss_D,
