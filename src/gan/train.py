@@ -133,9 +133,16 @@ def train():
                 # print(pos_real.shape, generator(z, pos_same).detach().shape)
                 # print(z.shape)
                 # arm.viz_inverse(pos_same, generator(z, pos_same).detach(), fig_name=f"{batches_done}")
-                arm.viz_inverse(pos_real, generator(z, pos_real).detach(), fig_name=f"{batches_done}")
+                generated_test_batch = generator(z, pos_real).detach()
+                arm.viz_inverse(pos_real, generated_test_batch, fig_name=f"{batches_done}")
                 print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
-
+                # TODO: improve image logging, perhaps return fig from inverse?
+                # TODO: log all visualizations in the same dir? Create gif?
+                wandb.log({
+                    "plot": wandb.Image(os.path.join(arm.viz_dir, f"{batches_done}.png")),
+                    "generated_batch": generated_test_batch})
+                # TODO: log input for generated data to see how well it behaves
+            
             wandb.log({
                 "Epoch": epoch,
                 "loss_D": loss_D,
@@ -143,8 +150,6 @@ def train():
                 "loss_D_fake": loss_D_fake,
                 "loss_G": loss_G
             })
-            # TODO: log images
-            # 'examples': [wandb.Image(i) for i in fixed_fake_image]
 
             if batches_done % config.save_model_interval == 0:
                 checkpoint = {
