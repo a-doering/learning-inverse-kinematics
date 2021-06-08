@@ -15,13 +15,14 @@ config = dict(
     seed=123456,
     lr=5e-4,
     n_discriminator=5,
-    num_epochs=30,
+    num_epochs=300,
     sample_interval=100,
     save_model_interval=200,
     batch_size=64,
     num_thetas=4,
     dim_pos=2,
     latent_dim=3,
+    pos_test=[1.5, 0]
 )
 # TODO: decide if saving every n epochs or every m samples or batches
 
@@ -38,7 +39,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Setup wandb for model tracking
 wandb.init(
     project="pytorch-test",
-    name="sixth-test",
+    name="test_full_data_100_1000",
     tags=["playground"],
     config=config
 )
@@ -98,10 +99,10 @@ def train():
             pos_gen = arm.forward(arm.sample_priors(config.batch_size))
 
             # Generate batch of thetas
-            thetas_gen = generator(z, pos_real)
+            thetas_gen = generator(z, pos_gen)
 
             # Calculate loss
-            validity = discriminator(thetas_gen, pos_real)
+            validity = discriminator(thetas_gen, pos_gen)
             loss_G = adversarial_loss(validity, valid)
 
             loss_G.backward()
@@ -116,7 +117,8 @@ def train():
             loss_D_real = adversarial_loss(validity_real, valid)
 
             # Loss for generated (fake) thetas
-            validity_fake = discriminator(thetas_gen.detach(), pos_real)
+            # Detach to backpropagate not through entire graph(G+D), but only D
+            validity_fake = discriminator(thetas_gen.detach(), pos_gen)
             loss_D_fake = adversarial_loss(validity_fake, fake)
 
             # Total discriminator loss
@@ -125,27 +127,25 @@ def train():
             optimizer_D.step()
             batches_done += 1
 
+            # Test the generator, visualize and calculate mean distance
             if batches_done % config.sample_interval == 0:
-                # Tensor of size (batch_size, 2) with always the same position
-                # pos_same = Tensor(batch_size, 2).fill_(1.0)
-                # pos_same[:, 0] *= 2
-                # pos_same[:, 1] *= 0.5
-                # print(pos_real.shape, generator(z, pos_same).detach().shape)
-                # print(z.shape)
-                # arm.viz_inverse(pos_same, generator(z, pos_same).detach(), fig_name=f"{batches_done}")
-                generated_test_batch = generator(z, pos_real).detach()
-                arm.viz_inverse(pos_real, generated_test_batch, fig_name=f"{batches_done}")
-                print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
+                # Tensor size (batch_size, 2) with always the same target position
+                pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
+                pos_test[:, 1] = config.pos_test[1]
+                # Generate test batch, all to same target position
+                generated_test_batch = generator(z, pos_test).detach()
+                arm.viz_inverse(pos_test, generated_test_batch, fig_name=f"{batches_done}")
                 # TODO: improve image logging, perhaps return fig from inverse?
                 # TODO: log all visualizations in the same dir? Create gif?
-                mean_euclidean = arm.distance_euclidean(pos_real, arm.forward(generated_test_batch))
-                # TODO: add a euclidean for pairwise distance and not only all to one
+                mean_euclidean = arm.distance_euclidean(pos_test, arm.forward(generated_test_batch))
                 wandb.log({
                     "plot": wandb.Image(os.path.join(arm.viz_dir, f"{batches_done}.png")),
                     "generated_batch": generated_test_batch,
                     "mean_euclidean": mean_euclidean
                 })
-                # TODO: log input for generated data to see how well it behaves
+                print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()}")
+
+            # TODO: add a euclidean for pairwise distance and not only all to one
             wandb.log({
                 "Epoch": epoch,
                 "loss_D": loss_D,
@@ -154,6 +154,7 @@ def train():
                 "loss_G": loss_G
             })
 
+            # Save checkpoints
             if batches_done % config.save_model_interval == 0:
                 checkpoint = {
                     "epoch": epoch,
@@ -173,7 +174,7 @@ def train():
                 # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
                 print(f"{epoch} epoch: saved model")
 
-    # Save parameters of last epoch
+    # Save checkpoint of last epoch
     checkpoint = {
         "epoch": epoch,
         "generator": generator.state_dict(),
