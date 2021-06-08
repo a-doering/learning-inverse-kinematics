@@ -3,6 +3,7 @@ import pickle
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
+from torch.functional import Tensor
 
 
 class RobotArm2d():
@@ -54,16 +55,16 @@ class RobotArm2d():
         return p3
 
     def distance_euclidean(self, pos_target: torch.FloatTensor, pos: torch.FloatTensor) -> float:
-        """Calculate the euclidean distance between all the positions and the target position
+        """Calculate the pairwise distance between each position and its 
+        respective target position, summed up and divided by dimension
 
-        :param pos: Target end effector position, size (1, 2), if provided (n, 2) it will be converted to (1, 2)
+        :param pos: Target end effector position, size (n, 2)
         :param thetas: Tensor of end effector positions, size (n, 2)
-        :return distance: Mean distance of all positions to target position
+        :return distance: Mean distance of each position to its respective target position
         """
-        # Take only first position of target in case multiple are provided
-        pos_target = pos_target[:1, :]
+        pdist = torch.nn.PairwiseDistance(p=2)
         dim = pos.shape[0]
-        return torch.sum(torch.cdist(pos_target, pos, p=2)) / dim
+        return torch.sum(pdist(pos_target, pos)) / dim
 
     def inverse(self, pos: torch.FloatTensor, guesses: torch.FloatTensor, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> torch.FloatTensor:
         # TODO: implement batch vectorized torch inverse
