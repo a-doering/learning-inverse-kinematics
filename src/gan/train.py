@@ -9,6 +9,7 @@ from gan.model import Generator, Discriminator
 from tqdm import tqdm
 import wandb
 
+# TODO: decide if saving every n epochs or every m samples or batches
 
 # Configuration
 config = dict(
@@ -16,15 +17,14 @@ config = dict(
     lr=5e-4,
     n_discriminator=5,
     num_epochs=300,
-    sample_interval=100,
-    save_model_interval=200,
+    sample_interval=500,
+    save_model_interval=4000,
     batch_size=64,
     num_thetas=4,
     dim_pos=2,
     latent_dim=3,
     pos_test=[1.5, 0]
 )
-# TODO: decide if saving every n epochs or every m samples or batches
 
 # Set random seeds
 seed = config["seed"]
@@ -134,12 +134,12 @@ def train():
                 pos_test[:, 1] = config.pos_test[1]
                 # Generate test batch, all to same target position
                 generated_test_batch = generator(z, pos_test).detach()
-                arm.viz_inverse(pos_test, generated_test_batch, fig_name=f"{batches_done}")
+                arm.viz_inverse(pos_test, generated_test_batch, fig_name=f"{epoch}_{batches_done}")
                 # TODO: improve image logging, perhaps return fig from inverse?
                 # TODO: log all visualizations in the same dir? Create gif?
                 mean_euclidean = arm.distance_euclidean(pos_test, arm.forward(generated_test_batch))
                 wandb.log({
-                    "plot": wandb.Image(os.path.join(arm.viz_dir, f"{batches_done}.png")),
+                    "plot": wandb.Image(os.path.join(arm.viz_dir, f"{epoch}_{batches_done}.png")),
                     "generated_batch": generated_test_batch,
                     "mean_euclidean": mean_euclidean
                 })
@@ -170,7 +170,7 @@ def train():
                 }
                 log_path = os.path.join(wandb.run.dir, "checkpoints")
                 os.makedirs(log_path, exist_ok=True)
-                torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint.pth"))
+                torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_{batches_done}_checkpoint.pth"))
                 # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
                 print(f"{epoch} epoch: saved model")
 
@@ -190,6 +190,6 @@ def train():
     log_path = os.path.join(wandb.run.dir, "checkpoints")
     os.makedirs(log_path, exist_ok=True)
     # TODO: investigate difference of saving file in wandb dir with torch vs wandb
-    torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint.pth"))
+    torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint_final.pth"))
     # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
     print(f"{epoch} epoch: saved model")
