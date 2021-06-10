@@ -23,9 +23,9 @@ class Generator(nn.Module):
         self.model = nn.Sequential(
             *block(latent_dim + dim_pos, 128, normalize=False),
             *block(128, 256),
-            *block(256, 512),
-            *block(512, 1024),
-            nn.Linear(1024, num_thetas),
+            #*block(256, 512),
+            #*block(512, 1024),
+            nn.Linear(256, num_thetas),
             # Tanh would limit the resulting space so that not all radian values can be created
             # nn.Tanh()
         )
@@ -47,9 +47,9 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Linear(num_thetas + dim_pos, 512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, 256),
+            nn.Linear(num_thetas + dim_pos, 256),
+            # nn.ReLU(inplace=True),
+            # nn.Linear(512, 256),
             nn.ReLU(inplace=True),
             nn.Linear(256, 1)
         )
