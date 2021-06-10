@@ -37,18 +37,19 @@ class RobotArm2d():
         """
         # Cloning is required to not share underlaying data
         next_pos = current_pos.clone()
-        angle = torch.FloatTensor(angle)
+        #angle = torch.FloatTensor(angle)
         next_pos[:, 0] += length * torch.cos(angle)
         next_pos[:, 1] += length * torch.sin(angle)
         return current_pos, next_pos
 
-    def forward(self, thetas: torch.FloatTensor) -> torch.FloatTensor:
+    # TODO: look up type annotation if type changes with device
+    def forward(self, thetas: torch.Tensor) -> torch.Tensor:
         """Forward kinematics of given joint configurations
 
         :param thetas: Joint parameters: (n, 4)
         :return: End effector position in 2d: (n, 2)
         """
-        p0 = torch.stack([torch.zeros((thetas.shape[0])), thetas[:, 0]], axis=1)
+        p0 = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
         _, p1 = self.advance_joint(p0, self.lengths[0], thetas[:, 1])
         _, p2 = self.advance_joint(p1, self.lengths[1], thetas[:, 1] + thetas[:, 2])
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
@@ -98,7 +99,7 @@ class RobotArm2d():
         :param viz_format: Formats in which the plot should be saved, e.g. (".png", ".svg") or ("png",)
         """
         # Calculate positions of each joint
-        p0 = torch.stack([torch.zeros((thetas.shape[0])), thetas[:, 0]], axis=1)
+        p0 = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
         _, p1 = self.advance_joint(p0, self.lengths[0], thetas[:, 1])
         _, p2 = self.advance_joint(p1, self.lengths[1], thetas[:, 1] + thetas[:, 2])
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
