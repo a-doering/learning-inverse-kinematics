@@ -40,7 +40,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # Setup wandb for model tracking
 wandb.init(
     project="adlr_gan",
-    name="target_not_easily_divisible",
+    name="small_model",
     tags=["loss_G_pos", "target_not_0"],
     config=config
 )
@@ -125,7 +125,7 @@ def train():
             loss_D_real = adversarial_loss(validity_real, valid)
 
             # Loss for generated (fake) thetas
-            # Detach to backpropagate not through entire graph(G+D), but only D
+            # Detach to backpropagate not through entire graph(G+D), but only D #TODO: Look at detach more
             validity_fake = discriminator(thetas_gen.detach(), pos_gen)
             loss_D_fake = adversarial_loss(validity_fake, fake)
 
@@ -147,7 +147,9 @@ def train():
                 pos_test[:, 1] = config.pos_test[1]
                 # Generate test batch, all to same target position
                 z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
-                generated_test_batch = generator(z_test, pos_test).detach()
+                # Inference
+                with torch.no_grad():
+                    generated_test_batch = generator(z_test, pos_test).detach()
                 arm.viz_inverse(pos_test.to("cpu"), generated_test_batch.to("cpu"), fig_name=f"{epoch}_{batches_done}")
                 # TODO: improve image logging, perhaps return fig from inverse?
                 # TODO: log all visualizations in the same dir? Create gif?
