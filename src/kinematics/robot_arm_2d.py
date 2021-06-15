@@ -167,6 +167,7 @@ class RobotArm2d():
         :param priors: Joint priors np.array of size (n, 4)
         :param num_inverses: Amount of inverses to be created per tcp_position
         """
+        print("Data generation started.")
         # Calculating forward kinematics
         if priors.ndim == 1:
             num_tcp = 1
