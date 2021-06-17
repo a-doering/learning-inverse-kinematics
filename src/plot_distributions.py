@@ -14,8 +14,8 @@ RANGE_Y = (-3.0, 3.0)
 
 
 # TODO deduplicate
-def load_model(priors_dim: int, checkpoint_path: str = "very-long-log/125_checkpoint.pt") -> SequenceINN:
-    inn = create_inn(priors_dim)
+def load_model(thetas_dim: int, checkpoint_path: str = "very-long-log/125_checkpoint.pt") -> SequenceINN:
+    inn = create_inn(thetas_dim)
     checkpoint = torch.load(checkpoint_path)
     inn.load_state_dict(checkpoint["model"])
     inn.eval()
@@ -27,8 +27,8 @@ def plot_positions(positions: torch.tensor):
     Creates a scatter plot of the given positions.
     :param positions: Tensor of shape (n, 2)
     """
-    plt.figure(figsize=(8, 8))
-    plt.scatter(positions[:, 0], positions[:, 1], s=5)
+    plt.figure(figsize=(8.2, 12))
+    plt.scatter(positions[:, 0], positions[:, 1], s=5, alpha=0.1)
     plt.xlim(*RANGE_X)
     plt.ylim(*RANGE_Y)
     plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
@@ -36,15 +36,15 @@ def plot_positions(positions: torch.tensor):
 
 
 def plot_predicted_position_distribution(batch_size: int = 128):
-    test_dataset, priors_dim, position_dim = load_dataset("data/test.pickle")
+    test_dataset, thetas_dim, position_dim = load_dataset("data/test.pickle")
     test_loader = DataLoader(test_dataset, batch_size, num_workers=2)
 
-    inn = load_model(priors_dim)
+    inn = load_model(thetas_dim)
 
     # required for the list comprehension to work
     torch.multiprocessing.set_sharing_strategy('file_system')
     with torch.no_grad():
-        positions_pred = [inn(priors)[0] for priors, _ in test_loader]
+        positions_pred = [inn(thetas)[0] for thetas, _ in test_loader]
     positions_pred = torch.cat(positions_pred, dim=0)[:, -position_dim:]
 
     print(positions_pred.size())
