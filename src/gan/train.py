@@ -34,14 +34,14 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-# # Device configuration
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# Device configuration
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Setup wandb for model tracking
 wandb.init(
     project="adlr_gan",
     name="small_model",
-    tags=["loss_G_pos", "target_not_0"],
+    tags=["fix_cuda"],
     config=config
 )
 # Rename for easier access
@@ -101,7 +101,7 @@ def train():
             # Sample noise as generator input
             z = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
-            pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
+            pos_gen = arm.forward(arm.sample_priors(config.batch_size))
 
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
@@ -109,7 +109,7 @@ def train():
             # Calculate loss
             validity = discriminator(thetas_gen, pos_gen)
             loss_G_fake = adversarial_loss(validity, valid)
-            pos_forward = arm.forward(thetas_gen).to(device)
+            pos_forward = arm.forward(thetas_gen)
             loss_G_pos = arm.distance_euclidean(pos_gen, pos_forward)
             loss_G = (loss_G_fake + loss_G_pos) / 2
 
@@ -140,8 +140,8 @@ def train():
                 start = time.time()
                 print(pos_gen[:3,:])
                 print(pos_forward[:3,:])
-                arm.viz_inverse(pos_gen[:3,:].detach().to("cpu"), thetas_gen[:3,:].detach().to("cpu"),fig_name=f"{epoch}_{batches_done}_gen", viz_format=(".png",) )
-
+                arm.viz_inverse(pos_gen[:3,:].detach(), thetas_gen[:3,:].detach(),fig_name=f"{epoch}_{batches_done}_gen", viz_format=(".png",) )
+                arm.viz_forward(pos_gen[:3,:].detach())
                 # Tensor size (batch_size, 2) with always the same target position
                 pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])#, device=device
                 pos_test[:, 1] = config.pos_test[1]
@@ -150,16 +150,16 @@ def train():
                 # Inference
                 with torch.no_grad():
                     generated_test_batch = generator(z_test, pos_test).detach()
-                arm.viz_inverse(pos_test.to("cpu"), generated_test_batch.to("cpu"), fig_name=f"{epoch}_{batches_done}")
+                arm.viz_inverse(pos_test, generated_test_batch, fig_name=f"{epoch}_{batches_done}")
                 # TODO: improve image logging, perhaps return fig from inverse?
                 # TODO: log all visualizations in the same dir? Create gif?
 
                 # TODO: Figure out why mean_euclidean (hence the test values) are so much worse then the generated ones
-                pos_forward_test = arm.forward(generated_test_batch.to("cpu")).to("cpu")
+                pos_forward_test = arm.forward(generated_test_batch)
                 print(z[:3, :])  
                 print(pos_test[:3,:])
                 print(pos_forward_test[:3,:])    
-                mean_euclidean = arm.distance_euclidean(pos_forward_test, pos_test.to("cpu"))
+                mean_euclidean = arm.distance_euclidean(pos_forward_test, pos_test)
 
                 wandb.log({
                     "plot": wandb.Image(os.path.join(arm.viz_dir, f"{epoch}_{batches_done}.png")),

@@ -9,8 +9,14 @@ from torch.functional import Tensor
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational"""
     def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5]):
-        self.sigmas = torch.FloatTensor(sigmas)
-        self.lengths = torch.FloatTensor(lengths)
+        cuda = True if torch.cuda.is_available() else False
+        if cuda:
+            Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+            self.device = "cuda"
+        else:
+            self.device = "cpu"
+        self.sigmas = Tensor(sigmas)
+        self.lengths = Tensor(lengths)
         self.rangex = (-0.5, 2.5)  # (-0.35, 2.25)
         self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
         cmap = cm.tab20c
@@ -24,7 +30,7 @@ class RobotArm2d():
 
     def sample_priors(self, batch_size: int = 1) -> torch.FloatTensor:
         """Normal distributed values of the joint parameters"""
-        return torch.randn(batch_size, 4) * self.sigmas
+        return torch.randn(batch_size, 4, device=self.device) * self.sigmas
 
     def advance_joint(self, current_pos: torch.FloatTensor, length: float, angle: float) -> (torch.FloatTensor, torch.FloatTensor):
         """Calculate position of next joint
@@ -80,6 +86,9 @@ class RobotArm2d():
 
         :param pos: End effector position in 2d: (n, 2)
         """
+        # Bring pos on cpu for plotting
+        pos = pos.cpu().numpy()
+        
         fig = self.init_plot()
         plt.scatter(pos[:, 0], pos[:, 1], s=5)
         plt.xlim(*self.rangex)
@@ -98,6 +107,7 @@ class RobotArm2d():
         :param fig_name: Name of the figure without ending or directory, e.g. "fig1"
         :param viz_format: Formats in which the plot should be saved, e.g. (".png", ".svg") or ("png",)
         """
+
         # Calculate positions of each joint
         p0 = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
         _, p1 = self.advance_joint(p0, self.lengths[0], thetas[:, 1])
@@ -105,6 +115,18 @@ class RobotArm2d():
         _, p3 = self.advance_joint(p2, self.lengths[2], thetas[:, 1] + thetas[:, 2] + thetas[:, 3])
 
         fig = self.init_plot()
+
+        # Calculate distance from target
+        distance = self.distance_euclidean(pos, p3)
+
+        # Detach from gpu
+        if self.device == "cuda":
+            print("In loop")
+            p0 = p0.cpu().numpy()
+            p1 = p1.cpu().numpy()
+            p2 = p2.cpu().numpy()
+            p3 = p3.cpu().numpy()
+            pos = pos.cpu().numpy()
 
         # Plot arms
         opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
@@ -121,7 +143,7 @@ class RobotArm2d():
         plt.ylim(*self.rangey)
         plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
         # Euclidean position is only calculated to the first entry of pos, while target crosses for all will be displayed
-        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {self.distance_euclidean(pos, p3):.3f}")
+        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {distance:.3f}")
 
         if save:
             for format in viz_format:
