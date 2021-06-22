@@ -4,14 +4,15 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
 from torch.functional import Tensor
+import time
 
 
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational"""
     def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5]):
         cuda = True if torch.cuda.is_available() else False
+        Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
         if cuda:
-            Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
             self.device = "cuda"
         else:
             self.device = "cpu"
@@ -73,9 +74,41 @@ class RobotArm2d():
         dim = pos.shape[0]
         return torch.sum(pdist(pos_target, pos)) / dim
 
-    def inverse(self, pos: torch.FloatTensor, guesses: torch.FloatTensor, epsilon: float = 5e-2, max_steps: int = 3000, lr: float = 0.2) -> torch.FloatTensor:
-        # TODO: implement batch vectorized torch inverse
-        raise NotImplementedError
+    def inverse(self, pos: torch.FloatTensor, inverses_each: float = 10, epsilon: float = 5e-2, mult: float = 100) -> torch.FloatTensor:
+        """Inverse kinematics with rejection sampling
+
+        :param pos: Target end effector position, size (n, 2)
+        :param inverses_each: How many inverses per target end effector
+        :param epsilon: Tolerance for prediction compared to ground truth, float
+        :param mult: Multiplier how many more samples will be generated each iteration than needed
+        :return: Joint parameters, size (n*inverses_each, sigmas.shape[0])
+        """
+        n = pos.shape[0]
+        pdist = torch.nn.PairwiseDistance(p=2)
+        thetas = torch.zeros((n*inverses_each, self.sigmas.shape[0]), device=self.device)
+        
+        # Loop over each target position
+        for i in range(n):
+            num_thetas_close = 0
+            while num_thetas_close < num_inverse_each:
+                # Sample thetas, forward, keep thetas with position close to target
+                thetas_gen = self.sample_priors(mult*inverses_each)
+                pos_gen = self.forward(thetas_gen)
+                thetas_close = thetas_gen[pdist(pos[i], pos_gen) <= epsilon]
+                num_thetas_close_batch = thetas_close.shape[0]
+                if num_thetas_close_batch == 0:
+                    continue
+                # Fill with thetas that yield a close position
+                if num_thetas_close + num_thetas_close_batch > inverses_each:
+                    num_diff = inverses_each - num_thetas_close
+                    thetas[i*inverses_each + num_thetas_close : (i+1)*inverses_each] = thetas_close[0:num_diff]
+                    break
+                elif num_thetas_close_batch > 0:
+                    # print(i*inverses_each + num_thetas_close, i*inverses_each + num_thetas_close + num_thetas_close_batch)
+                    thetas[i*inverses_each + num_thetas_close : i*inverses_each + num_thetas_close + num_thetas_close_batch] = thetas_close[:]
+                num_thetas_close += num_thetas_close_batch
+        return thetas
+
 
     def init_plot(self) -> plt.figure:
         """Initialize matplotlib figure"""
@@ -136,8 +169,8 @@ class RobotArm2d():
 
         # Plot cross to mark end effector position
         l_cross = 0.6
-        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
-        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='gray', linewidth=.5, alpha=.5, zorder=-1)
+        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
+        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
 
         plt.xlim(*self.rangex)
         plt.ylim(*self.rangey)
@@ -171,9 +204,22 @@ if __name__ == "__main__":
     num_forward = 10
     num_inverse_each = 100
     # Viz forward
-    priors = arm.sample_priors(num_forward)
-    pos = arm.forward(priors)
-    arm.viz_forward(pos)
+    # priors = arm.sample_priors(num_forward)
+    # pos = arm.forward(priors)
+    # arm.viz_forward(pos)
     # # Viz and test inverse
     # guesses = arm.inverse(pos, arm.sample_priors(num_inverse_each))
     # arm.viz_inverse(pos, guesses)
+
+    # Test inverse
+    start = time.time()
+    num_forward = 100
+    num_inverse_each = 1000
+    priors = arm.sample_priors(num_forward)
+    pos = arm.forward(priors)
+    thetas_gen = arm.inverse(pos, num_inverse_each)
+    print(thetas_gen.shape)
+    time_taken = time.time() - start
+    print(f"time: {time_taken}")
+    #print(thetas_gen)
+    arm.viz_inverse(pos[0:1], thetas_gen[0:num_inverse_each])
