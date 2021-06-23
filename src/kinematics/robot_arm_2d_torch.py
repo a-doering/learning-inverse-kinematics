@@ -19,8 +19,8 @@ class RobotArm2d():
         self.sigmas = Tensor(sigmas)
         self.num_joints = self.sigmas.shape[0]
         self.lengths = Tensor(lengths)
-        self.rangex = (-0.5, 2.5)  # (-0.35, 2.25)
-        self.rangey = (-1.5, 1.5)  # (-1.3, 1.3)
+        self.rangex = (-self.lengths.sum()*0.5, self.lengths.sum()*1.2)  # (-0.35, 2.25)
+        self.rangey = (-(self.lengths.sum() + self.sigmas[0]), (self.lengths.sum() + self.sigmas[0]))  # (-1.3, 1.3)
         cmap = plt.cm.tab20c
         self.colors = [[cmap(4*c_index + i) for i in range(self.lengths.shape[0])] for c_index in range(5)][-1]
         self.out_dir = "data"
@@ -106,7 +106,6 @@ class RobotArm2d():
                     thetas[i*inverses_each + num_thetas_close : (i+1)*inverses_each] = thetas_close[0:num_diff]
                     break
                 elif num_thetas_close_batch > 0:
-                    # print(i*inverses_each + num_thetas_close, i*inverses_each + num_thetas_close + num_thetas_close_batch)
                     thetas[i*inverses_each + num_thetas_close : i*inverses_each + num_thetas_close + num_thetas_close_batch] = thetas_close[:]
                 num_thetas_close += num_thetas_close_batch
         return thetas
@@ -125,7 +124,7 @@ class RobotArm2d():
         pos = pos.cpu().numpy()
         
         fig = self.init_plot()
-        plt.scatter(pos[:, 0], pos[:, 1], s=5)
+        plt.scatter(pos[:, 0], pos[:, 1], s=5, alpha=0.5)
         plt.xlim(*self.rangex)
         plt.ylim(*self.rangey)
         plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
@@ -199,14 +198,14 @@ if __name__ == "__main__":
     #TODO: move this to a test class
 
     ## 5 DOF P RRR R joints
-    arm = RobotArm2d(lengths = [0.5, 0.5, 1, 1], sigmas = [0.25, 0.5, 0.5, 0.5, 0.5])
-    num_forward = 3
-    num_inverse_each = 10
+    arm = RobotArm2d(lengths = [0.5, 0.5, 1, 1, 1, 1], sigmas = [0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+    # num_forward = 10
+    # num_inverse_each = 100
     # Viz forward
-    priors = arm.sample_priors(num_forward)
-    pos = arm.forward(priors)
-    print(pos)
-    arm.viz_forward(pos)
+    # priors = arm.sample_priors(num_forward)
+    # pos = arm.forward(priors)
+    # print(pos)
+    # arm.viz_forward(pos)
     # # Viz and test inverse
     # guesses = arm.inverse(pos, arm.sample_priors(num_inverse_each))
     # arm.viz_inverse(pos, guesses)
@@ -219,10 +218,8 @@ if __name__ == "__main__":
     pos = arm.forward(priors)
     arm.viz_forward(pos)
     thetas_gen = arm.inverse(pos, num_inverse_each)
-    print(thetas_gen.shape)
     time_taken = time.time() - start
     print(f"time: {time_taken}")
-    #print(thetas_gen)
     arm.viz_inverse(pos[0:1], thetas_gen[0:num_inverse_each], fig_name="0000_inverse")
 
     # ## 4 DOF
