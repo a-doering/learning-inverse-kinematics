@@ -76,18 +76,18 @@ class RobotArm2d():
         dim = pos.shape[0]
         return torch.sum(pdist(pos_target, pos)) / dim
 
-    def inverse(self, pos: torch.FloatTensor, inverses_each: float = 10, epsilon: float = 5e-2, mult: float = 100) -> torch.FloatTensor:
+    def inverse(self, pos: torch.FloatTensor, inverses_each: int = 10, epsilon: float = 5e-2, mult: float = 100) -> torch.FloatTensor:
         """Inverse kinematics with rejection sampling
 
         :param pos: Target end effector position, size (n, 2)
         :param inverses_each: How many inverses per target end effector
         :param epsilon: Tolerance for prediction compared to ground truth, float
         :param mult: Multiplier how many more samples will be generated each iteration than needed
-        :return: Joint parameters, size (n*inverses_each, sigmas.shape[0])
+        :return thetas: Joint parameters, size (n*inverses_each, self.num_joints)
         """
         n = pos.shape[0]
         pdist = torch.nn.PairwiseDistance(p=2)
-        thetas = torch.zeros((n*inverses_each, self.sigmas.shape[0]), device=self.device)
+        thetas = torch.zeros((n*inverses_each, self.num_joints), device=self.device)
         
         # Loop over each target position
         for i in range(n):
@@ -188,18 +188,44 @@ class RobotArm2d():
             plt.show()
         plt.close(fig)
 
-    def generate_data(self, thetas: torch.FloatTensor, num_inverses: int) -> None:
+    def save_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, filename: str = "inverse_data") -> None:
+        """Saving of inverse kinematics
+
+        :param pos: End effector position, size (n, 2)
+        :param thetas: Joint parameters, size (n*inverses_each, self.num_joints)
+        :param filename: Name of the file without ending or directory, e.g. "inverse_data"
+        """
+        # TODO: find out if there is a need to set the format (e.g. GPU/CPU/numpy)
+        data = {
+            "pos": pos,
+            "thetas": thetas
+        }
+        os.makedirs(self.out_dir, exist_ok=True)
+        path = self.out_dir + os.path.sep + filename + ".pickle"
+        with open(path, "wb") as file:
+            pickle.dump(data, file)
+        print(f"Saved the data under {path}")
+
+    def generate_data(self, thetas: torch.FloatTensor, inverses_each: int, filename: str = "inverse_data") -> None:
         """Generate training data: for each prior the end effector position is
-        Calculated and for each end effector position num_inverses will be sampled
+        Calculated and for each end effector position inverses_each will be sampled
 
         :param thetas: Joint parameters, size (n, self.num_joints)
-        :param num_inverses: Amount of inverses to be created per end effector position
+        :param inverses_each: Amount of inverses to be created per end effector position, int
+        :param filename: Name of the file without ending or directory, e.g. "inverse_data"
         """
+        print("Data generation started.")
+        start = time.time()
+        # Forward kinematics
         pos = self.forward(thetas)
-        num_positions = thetas.shape[0]
-        guesses = torch.zeros((num_positions * num_inverses, self.num_joints))
-        # TODO: finish after implementing inverse kinematics
-        raise NotImplementedError
+        # Inverse kinematics
+        thetas_gen = self.inverse(pos, inverses_each)
+        end = time.time()
+        
+        # Appending information to filename and saving
+        filename += f"_{self.num_joints}_{thetas.shape[0]}_{inverses_each}"
+        print(f"Time taken for data generation: {end-start:.3f} seconds, generated:\n{self.num_joints} joints with {thetas.shape[0]} forward configurations with {inverses_each} inverse configurations each.")
+        self.save_inverse(pos, thetas_gen, filename)
 
 
 if __name__ == "__main__":
@@ -207,8 +233,8 @@ if __name__ == "__main__":
 
     ## 5 DOF P RRR R joints
     arm = RobotArm2d(lengths = [0.5, 0.5, 1, 1, 1, 1], sigmas = [0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
-    # num_forward = 10
-    # num_inverse_each = 100
+    num_forward = 10
+    num_inverse_each = 100
     # Viz forward
     # priors = arm.sample_priors(num_forward)
     # pos = arm.forward(priors)
@@ -219,16 +245,19 @@ if __name__ == "__main__":
     # arm.viz_inverse(pos, guesses)
 
     # Test inverse
-    start = time.time()
-    num_forward = 2
-    num_inverse_each = 100
-    priors = arm.sample_priors(num_forward)
-    pos = arm.forward(priors)
-    arm.viz_forward(pos)
-    thetas_gen = arm.inverse(pos, num_inverse_each)
-    time_taken = time.time() - start
-    print(f"time: {time_taken}")
-    arm.viz_inverse(pos[0:1], thetas_gen[0:num_inverse_each], fig_name="0000_inverse")
+    # start = time.time()
+    # num_forward = 2
+    # num_inverse_each = 100
+    # priors = arm.sample_priors(num_forward)
+    # pos = arm.forward(priors)
+    # arm.viz_forward(pos)
+    # thetas_gen = arm.inverse(pos, num_inverse_each)
+    # time_taken = time.time() - start
+    # print(f"time: {time_taken}")
+    # arm.viz_inverse(pos[0:1], thetas_gen[0:num_inverse_each], fig_name="0000_inverse")
+
+    # Test data generation
+    arm.generate_data(arm.sample_priors(num_forward), num_inverse_each)
 
     # ## 4 DOF
     # arm = RobotArm2d()
