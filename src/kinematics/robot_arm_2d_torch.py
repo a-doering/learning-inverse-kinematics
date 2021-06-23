@@ -115,10 +115,14 @@ class RobotArm2d():
         """Initialize matplotlib figure"""
         return plt.figure(figsize=(8, 8))
 
-    def viz_forward(self, pos: torch.FloatTensor) -> None:
+    def viz_forward(self, pos: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_forward", viz_format: tuple = (".png", ".svg")) -> None:
         """Visualization of forward kinematics positions
 
         :param pos: End effector position in 2d: (n, 2)
+        :param save: Bool, True if plot should be saved
+        :param show: Bool, True if plot should be displayed
+        :param fig_name: Name of the figure without ending or directory, e.g. "fig1"
+        :param viz_format: Formats in which the plot should be saved, e.g. (".png", ".svg") or ("png",)
         """
         # Bring pos on cpu for plotting
         pos = pos.cpu().numpy()
@@ -129,11 +133,15 @@ class RobotArm2d():
         plt.ylim(*self.rangey)
         plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
         plt.title(f"Forward Kinematics with {pos.shape[0]} samples")
-        #TODO: implement saving routine
-        fig.savefig(os.path.join(self.viz_dir, "0000_forward") + ".png")
-        plt.show()
 
-    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig", viz_format: tuple = (".png", ".svg")) -> None:
+        if save:
+            for format in viz_format:
+                fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
+        if show:
+            plt.show()
+        plt.close(fig)
+
+    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_inverse", viz_format: tuple = (".png", ".svg")) -> None:
         """Visualization of inverse kinematic configurations for end effector position
 
         :param pos: End effector position, size (n, 2), use n=1 to get informative plots
