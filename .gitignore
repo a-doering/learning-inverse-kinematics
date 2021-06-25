@@ -2,14 +2,20 @@
 /.idea/
 # VS Code
 /.vscode
-# virtual env
+# Virtual environment
 /.venv/
 # Python
 __pycache__/
 
-# generated training data
+# Generated training data
 /data/
+
+# GAN
 # Visualizations
 /visualizations/
 # Experiment tracking
 /wandb/
+
+# INN:
+# Training logs inn
+/log/
