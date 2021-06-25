@@ -167,6 +167,7 @@ class RobotArm2d():
         :param priors: Joint priors np.array of size (n, 4)
         :param num_inverses: Amount of inverses to be created per tcp_position
         """
+        print("Data generation started.")
         # Calculating forward kinematics
         if priors.ndim == 1:
             num_tcp = 1
@@ -191,8 +192,8 @@ class RobotArm2d():
 if __name__ == "__main__":
     arm = RobotArm2d()
     # Samples to be generated
-    num_forward = 1
-    num_inverses_each = 1000
+    num_forward = 1000
+    num_inverses_each = 100
     arm.generate_data(arm.sample_priors(num_forward), num_inverses_each)
 
     # # Viz forward
