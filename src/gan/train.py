@@ -22,7 +22,7 @@ config = dict(
     save_model_interval=4000,
     batch_size=64,
     num_thetas=4,
-    dim_pos=2,
+    pos_dim=2,
     latent_dim=3,
     pos_test=[1.51, 0.199]
 )
@@ -58,8 +58,8 @@ dataloader = DataLoader(
 
 
 def train():
-    generator = Generator(num_thetas=config.num_thetas, dim_pos=config.dim_pos, latent_dim=config.latent_dim)
-    discriminator = Discriminator(num_thetas=config.num_thetas, dim_pos=config.dim_pos)
+    generator = Generator(num_thetas=config.num_thetas, pos_dim=config.pos_dim, latent_dim=config.latent_dim)
+    discriminator = Discriminator(num_thetas=config.num_thetas, pos_dim=config.pos_dim)
     adversarial_loss = torch.nn.MSELoss()
 
     # Print model to log structure
