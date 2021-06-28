@@ -46,8 +46,8 @@ class RobotArm2d():
         # Cloning is required to not share underlaying data
         next_pos = current_pos.clone()
         #angle = torch.FloatTensor(angle)
-        next_pos[:, 0] += length * torch.cos(angle)
-        next_pos[:, 1] += length * torch.sin(angle)
+        next_pos[:, 0] = next_pos[:, 0] + length * torch.cos(angle)
+        next_pos[:, 1] = next_pos[:, 1] + length * torch.sin(angle)
         return current_pos, next_pos
 
     # TODO: look up type annotation if type changes with device
@@ -60,7 +60,7 @@ class RobotArm2d():
         angle = torch.zeros_like(thetas[:, 1], device=self.device)
         p_next = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
         for joint in range(self.num_joints -1):
-            angle += thetas[:, joint + 1]
+            angle = angle + thetas[:, joint + 1]
             _, p_next = self.advance_joint(p_next, self.lengths[joint], angle)
         return p_next
 
