@@ -16,11 +16,10 @@ import time
 config = dict(
     seed=123456,
     lr=5e-4,
-    n_discriminator=5,
     num_epochs=300,
     sample_interval=1000,
     save_model_interval=500,
-    batch_size=65536,
+    batch_size=1024,
     num_thetas=4,
     pos_dim=2,
     latent_dim=3,
@@ -59,27 +58,20 @@ dataloader = DataLoader(
 
 def train():
     generator = Generator(num_thetas=config.num_thetas, pos_dim=config.pos_dim, latent_dim=config.latent_dim)
-    discriminator = Discriminator(num_thetas=config.num_thetas, pos_dim=config.pos_dim)
-    adversarial_loss = torch.nn.MSELoss()
 
     # Print model to log structure
     print(generator)
-    print(discriminator)
     print(device)
 
     cuda = True if torch.cuda.is_available() else False
     if cuda:
         generator.cuda()
-        discriminator.cuda()
-        adversarial_loss.cuda()
 
     # Optimizer
     optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
-    optimizer_D = torch.optim.RMSprop(discriminator.parameters(), lr=config.lr)
 
     # Log models
     wandb.watch(generator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
-    wandb.watch(discriminator, optimizer_D, log="all", log_freq=10)
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
@@ -100,14 +92,12 @@ def train():
             z = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
             pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
-
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
-
-            # Calculate loss
+            # Forward step and calculate loss
             pos_forward = arm.forward(thetas_gen)
-            loss_G_pos = torch.zeros(1, requires_grad=True)
             loss_G_pos = arm.distance_euclidean(pos_gen, pos_forward)
+            # Backward step
             loss_G_pos.backward()
             optimizer_G.step()
             batches_done += 1
@@ -127,8 +117,6 @@ def train():
         "epoch": epoch,
         "generator": generator.state_dict(),
         "optimizer_G": optimizer_G.state_dict(),
-        "discriminator": discriminator.state_dict(),
-        "optimizer_D": optimizer_D.state_dict(),
         "loss_G_pos": loss_G_pos,
     }
     log_path = os.path.join(wandb.run.dir, "checkpoints")
