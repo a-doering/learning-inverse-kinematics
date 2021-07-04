@@ -9,22 +9,14 @@ from gan.model import Generator, Discriminator
 from tqdm import tqdm
 import wandb
 import time
+import yaml
 
 # TODO: decide if saving every n epochs or every m samples or batches
 
 # Configuration
-config = dict(
-    seed=123456,
-    lr=5e-4,
-    num_epochs=300,
-    sample_interval=1000,
-    save_model_interval=500,
-    batch_size=1024,
-    num_thetas=4,
-    pos_dim=2,
-    latent_dim=3,
-    pos_test=[1.51, 0.199]
-)
+config_path = "config/config_generator.yaml"
+with open (config_path, "r") as stream:
+    config = yaml.safe_load(stream)
 
 # Set random seeds
 seed = config["seed"]
@@ -46,6 +38,7 @@ wandb.init(
 # Rename for easier access
 config = wandb.config
 
+#TODO: Add data path to config
 dataloader = DataLoader(
     InverseDataset2d(
         path="data/inverse.pickle"
