@@ -21,3 +21,5 @@ pos_test:
     1.51,
    0.199
   ]
+data_path:
+  "data/inverse.pickle"

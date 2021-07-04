@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import random
 from kinematics.robot_arm_2d_torch import RobotArm2d
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, dataloader
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator
 from tqdm import tqdm
@@ -12,44 +12,42 @@ import time
 import yaml
 
 # TODO: decide if saving every n epochs or every m samples or batches
+def set_dataloader(data_path: str, batch_size: str) -> DataLoader:
+    return DataLoader(
+        InverseDataset2d(
+            path=data_path
+        ),
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True
+    )
 
-# Configuration
-config_path = "config/config_generator.yaml"
-with open (config_path, "r") as stream:
-    config = yaml.safe_load(stream)
+def set_wandb(config_path: str) -> wandb.config:
+    # Configuration
+    with open (config_path, "r") as stream:
+        config = yaml.safe_load(stream)
+    # Setup wandb for model tracking
+    wandb.init(
+        project="adlr_gan",
+        name="debug",
+        tags=["fix_cuda"],
+        config=config
+    )
+    return wandb.config
 
-# Set random seeds
-seed = config["seed"]
-torch.backends.cudnn.deterministic = True
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-# Device configuration
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def train(config_path: str = "config/config_generator.yaml") -> None:
+    config = set_wandb(config_path)
+    # Set random seeds
+    seed = config["seed"]
+    torch.backends.cudnn.deterministic = True
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Device configuration
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Setup wandb for model tracking
-wandb.init(
-    project="adlr_gan",
-    name="small_model",
-    tags=["fix_cuda"],
-    config=config
-)
-# Rename for easier access
-config = wandb.config
-
-#TODO: Add data path to config
-dataloader = DataLoader(
-    InverseDataset2d(
-        path="data/inverse.pickle"
-    ),
-    batch_size=config.batch_size,
-    shuffle=True,
-    drop_last=True
-)
-
-
-def train():
+    dataloader = set_dataloader(config.data_path, config.batch_size)
     generator = Generator(num_thetas=config.num_thetas, pos_dim=config.pos_dim, latent_dim=config.latent_dim)
 
     # Print model to log structure
