@@ -30,7 +30,7 @@ def set_wandb(config_path: str) -> wandb.config:
     wandb.init(
         project="adlr_gan",
         name="debug",
-        tags=["fix_cuda"],
+        tags=["device_dataset"],
         config=config
     )
     return wandb.config
@@ -66,7 +66,7 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
     batches_done = 0
-    arm = RobotArm2d()
+    arm = RobotArm2d(config["robot_arm"]["lengths"], config["robot_arm"]["sigmas"])
     torch.autograd.set_detect_anomaly(True)
     for epoch in tqdm(range(config.num_epochs)):
         for iter, (thetas_real, pos_real) in enumerate(dataloader):
