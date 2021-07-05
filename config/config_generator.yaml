@@ -11,7 +11,7 @@ save_model_interval:
 batch_size:
   1024
 num_thetas:
-  4
+  7
 pos_dim:
   2
 latent_dim:
@@ -22,4 +22,4 @@ pos_test:
    0.199
   ]
 data_path:
-  "data/inverse.pickle"
+  "data/inverse_data_7_1000_100.pickle"
