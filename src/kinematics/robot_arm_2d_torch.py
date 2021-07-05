@@ -57,11 +57,11 @@ class RobotArm2d():
         :param thetas: Joint parameters: (n, self.num_joints)
         :return: End effector position in 2d: (n, 2)
         """
-        angle = torch.zeros_like(thetas[:, 1], device=self.device)
+        angle = torch.zeros_like(thetas[:, 1], device=thetas.device)
         p_next = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
         for joint in range(self.num_joints -1):
             angle = angle + thetas[:, joint + 1]
-            _, p_next = self.advance_joint(p_next, self.lengths[joint], angle)
+            _, p_next = self.advance_joint(p_next, self.lengths[joint].to(thetas.device), angle)
         return p_next
 
     def distance_euclidean(self, pos_target: torch.FloatTensor, pos: torch.FloatTensor) -> float:

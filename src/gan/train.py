@@ -94,29 +94,31 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
             batches_done += 1
 
         # # Test the generator, visualize and calculate mean distance
-        # if epoch % config.sample_interval == 0:
-        #     start = time.time()
-        #     # Create test position
-        #     pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
-        #     pos_test[:, 1] = config.pos_test[1]
-        #     # Create test batch, all with same target position
-        #     z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
-        #     # Inference
-        #     with torch.no_grad():
-        #         generated_test_batch = generator(z_test, pos_test)
-        #     # Visualize
-        #     fig_name = f"{epoch}_{batches_done}"
-        #     arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
-        #     # Calculate distance and log
-        #     pos_forward_test = arm.forward(generated_test_batch)
-        #     test_distance = arm.distance_euclidean(pos_forward_test, pos_test)
-        #     wandb.log({
-        #         "plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
-        #         "generated_batch": generated_test_batch,
-        #         "test_distance": test_distance
-        #     })
-        #     print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | G los pos: {loss_G_pos.item()} | Test dis: {test_distance}"")#")
-        #     print(f"Time for saving: {time.time()-start}")
+        if epoch % config.sample_interval == 0:
+            generator.eval()
+            start = time.time()
+            # Create test position
+            pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
+            pos_test[:, 1] = config.pos_test[1]
+            # Create test batch, all with same target position
+            z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
+            # Inference
+            with torch.no_grad():
+                generated_test_batch = generator(z_test, pos_test).detach().cpu()
+            # Visualize
+            fig_name = f"{epoch}_{batches_done}"
+            arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+            # Calculate distance and log
+            pos_forward_test = arm.forward(generated_test_batch)
+            test_distance = arm.distance_euclidean(pos_forward_test, pos_test.cpu())
+            wandb.log({
+                "plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
+                "generated_batch": generated_test_batch,
+                "test_distance": test_distance
+            })
+            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | G los pos: {loss_G_pos.item()} | Test dis: {test_distance}"")#")
+            print(f"Time for saving: {time.time()-start}")
+            generator.train()
 
         # Log every epoch
         wandb.log({
