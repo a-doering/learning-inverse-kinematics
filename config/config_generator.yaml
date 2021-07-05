@@ -3,11 +3,11 @@ seed:
 lr:
   0.0005
 num_epochs:
-  300
+  250
 sample_interval:
-  1000
+  10
 save_model_interval:
-  500
+  200
 batch_size:
   1024
 num_thetas:
