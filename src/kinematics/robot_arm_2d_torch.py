@@ -19,8 +19,8 @@ class RobotArm2d():
         self.sigmas = Tensor(sigmas)
         self.num_joints = self.sigmas.shape[0]
         self.lengths = Tensor(lengths)
-        self.rangex = (-self.lengths.sum()*0.5, self.lengths.sum()*1.2)  # (-0.35, 2.25)
-        self.rangey = (-(self.lengths.sum() + self.sigmas[0]), (self.lengths.sum() + self.sigmas[0]))  # (-1.3, 1.3)
+        self.rangex = (-self.lengths.sum().cpu()*0.5, self.lengths.sum().cpu()*1.2)  # (-0.35, 2.25)
+        self.rangey = (-(self.lengths.sum().cpu() + self.sigmas[0].cpu()), (self.lengths.sum().cpu() + self.sigmas[0].cpu()))  # (-1.3, 1.3)
         cmap = plt.cm.tab20c
         self.colors = [[cmap(4*c_index + i) for i in range(self.lengths.shape[0])] for c_index in range(5)][-1]
         self.out_dir = "data"
@@ -156,13 +156,13 @@ class RobotArm2d():
         fig = self.init_plot()
         opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
 
-        angle = torch.zeros_like(thetas[:, 1])
+        angle = torch.zeros_like(thetas[:, 1], device=thetas.device)
         p_next = torch.stack([torch.zeros((thetas.shape[0]), device=thetas.device), thetas[:, 0]], axis=1)
 
         for joint in range(self.num_joints -1):
             # Advance one joint
             angle += thetas[:, joint + 1]
-            p_current, p_next = self.advance_joint(p_next, self.lengths[joint], angle)
+            p_current, p_next = self.advance_joint(p_next, self.lengths[joint].to(thetas.device), angle)
             # Plot arm between the two positions
             plt.quiver(p_current[:, 0], p_current[:, 1], (p_next-p_current)[:, 0], (p_next-p_current)[:, 1], **{'color': self.colors[joint], **opts})
 
