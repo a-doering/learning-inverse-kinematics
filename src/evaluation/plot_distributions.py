@@ -16,7 +16,7 @@ RANGE_Y = (-3.0, 3.0)
 
 
 # TODO deduplicate
-def load_model(thetas_dim: int, checkpoint_path: str = "very-long-log/125_checkpoint.pt") -> SequenceINN:
+def _load_model(thetas_dim: int, checkpoint_path: str = "very-long-log/125_checkpoint.pt") -> SequenceINN:
     inn = create_inn(thetas_dim)
     checkpoint = torch.load(checkpoint_path)
     inn.load_state_dict(checkpoint["model"])
@@ -24,7 +24,7 @@ def load_model(thetas_dim: int, checkpoint_path: str = "very-long-log/125_checkp
     return inn
 
 
-def plot_positions(positions: torch.tensor):
+def _plot_positions(positions: torch.tensor):
     """
     Creates a scatter plot of the given positions.
     :param positions: Tensor of shape (n, 2)
@@ -41,7 +41,7 @@ def plot_predicted_position_distribution(batch_size: int = 128):
     test_dataset, thetas_dim, position_dim = load_dataset("data/test.pickle")
     test_loader = DataLoader(test_dataset, batch_size, num_workers=2)
 
-    inn = load_model(thetas_dim)
+    inn = _load_model(thetas_dim)
 
     # required for the list comprehension to work
     torch.multiprocessing.set_sharing_strategy('file_system')
@@ -50,14 +50,14 @@ def plot_predicted_position_distribution(batch_size: int = 128):
     positions_pred = torch.cat(positions_pred, dim=0)[:, -position_dim:]
 
     print(positions_pred.size())
-    plot_positions(positions_pred)
+    _plot_positions(positions_pred)
 
 
 def plot_ground_truth_position_distribution():
     with open("data/test.pickle", "rb") as test_file:
         test_data = pickle.load(test_file)
     print(test_data["positions"].shape)
-    plot_positions(test_data["positions"])
+    _plot_positions(test_data["positions"])
 
 
 def plot_thetas(batch_size: int = 128):
@@ -85,7 +85,7 @@ def plot_thetas(batch_size: int = 128):
     test_dataset, thetas_dim, position_dim = load_dataset("data/test.pickle")
     test_loader = DataLoader(test_dataset, batch_size, num_workers=2)
 
-    inn = load_model(ground_truth_thetas.shape[1])
+    inn = _load_model(ground_truth_thetas.shape[1])
 
     def apply_inn(positions_batch):
         noise_batch = torch.randn(positions_batch.size(0), 2)
@@ -122,7 +122,7 @@ def plot_ground_truth_null_space():
     pca = PCA(n_components=2)
     ground_truth_thetas_2d = pca.fit_transform(ground_truth_thetas_scaled)
 
-    inn = load_model(ground_truth_thetas.shape[1])
+    inn = _load_model(ground_truth_thetas.shape[1])
     noise_batch = torch.randn(positions.shape[0], 2)
     positions_with_noise = torch.cat((noise_batch, positions), dim=1)
 
