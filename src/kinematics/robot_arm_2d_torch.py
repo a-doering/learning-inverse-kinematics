@@ -9,7 +9,7 @@ class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational)
     Arm can have more or less rotational joints.
     """
-    def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5]):
+    def __init__(self, lengths: list = [0.5, 0.5, 1], sigmas: list = [0.25, 0.5, 0.5, 0.5], viz_dir: str = "visualizations"):
         cuda = True if torch.cuda.is_available() else False
         Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
         if cuda:
@@ -24,7 +24,7 @@ class RobotArm2d():
         cmap = plt.cm.tab20c
         self.colors = [[cmap(4*c_index + i) for i in range(self.lengths.shape[0])] for c_index in range(5)][-1]
         self.out_dir = "data"
-        self.viz_dir = "visualizations"
+        self.viz_dir = viz_dir
         if not os.path.isdir(self.out_dir):
             os.makedirs(self.out_dir, exist_ok=True)
         if not os.path.isdir(self.viz_dir):

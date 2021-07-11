@@ -18,6 +18,7 @@ class Evaluator():
         )
         self.config = wandb.config
         self.checkpoint_path = os.path.join(self.run_dir, "files", "checkpoints")
+        self.viz_dir = os.path.join("visualizations", os.path.basename(os.path.normpath(run_dir)))
         self.cuda = True if torch.cuda.is_available() else False
         if self.cuda:
             self.device = "cuda"
@@ -35,11 +36,12 @@ class Evaluator():
             self.generator.cuda()
 
     def latent_variable_walk(self):
-        # go through latent variables
+        # TODO: e.g. 3x3 subplots with different latent variables
         raise NotImplementedError
 
-    def inference(self, ):
-        #perform inference
+    def multiple_positions(self):
+        # Plot multiple positions
+        # TODO: input: multiple positions, e.g. 5 and then 5 plots next to each other
         raise NotImplementedError
 
     def plot_inverse(self, z, pos):
@@ -51,7 +53,8 @@ class Evaluator():
 
     def evaluate(self):
         Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
-        self.arm = RobotArm2d(self.config["robot_arm"]["lengths"], self.config["robot_arm"]["sigmas"])
+
+        self.arm = RobotArm2d(self.config["robot_arm"]["lengths"], self.config["robot_arm"]["sigmas"], viz_dir = self.viz_dir)
         self.load_model()
 
         # Create test position
@@ -73,7 +76,7 @@ class Evaluator():
             # Calculate distance and log
             print(self.calculate_distance(generated_test_batch, pos_test).item())
  
- 
+
 if __name__ == "__main__":
     evaluator = Evaluator("250_checkpoint_final.pth", "wandb/run-20210705_123150-1nx0yjlw")
     evaluator.evaluate()
