@@ -4,6 +4,7 @@ from kinematics.robot_arm_2d_torch import RobotArm2d
 import os
 import numpy as np
 import wandb
+import matplotlib.pyplot as plt
 
 class Evaluator():
     """Evaluation class for the GAN"""
@@ -44,6 +45,25 @@ class Evaluator():
         # TODO: input: multiple positions, e.g. 5 and then 5 plots next to each other
         raise NotImplementedError
 
+    def create_subplots(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_evaluate_debug", viz_format: tuple = (".png", ".svg")):
+        fig, axs = plt.subplots(2,5, figsize=(15,6), facecolor="w", edgecolor="k")
+        fig.subplots_adjust(hspace = .5, wspace=.001)        
+        axs = axs.ravel()
+        for i in range(10):
+            axs[i].set_title(str(i))
+            _, distance = self.arm.viz_inverse(pos, thetas, fig_name=fig_name + f"{i}", ax=axs[i])
+            axs[i].set_title(f"{distance:.3f}")
+            # Debug statement
+            pos = pos + pos
+            print(i)
+        if save:
+            for format in viz_format:
+                fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
+                print("save!")
+        if show:
+            plt.show()
+        plt.close(fig)            
+
     def plot_inverse(self, z, pos):
         raise NotImplementedError
 
@@ -71,8 +91,9 @@ class Evaluator():
                 generated_test_batch = self.generator(z_test, pos_test).detach().cpu()
             # Visualize
             fig_name = f"evaluate_{pos_test[0][0]}_{pos_test[0][1]:.3f}"
-            self.arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
-
+            #self.arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+            self.create_subplots(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+            break
             # Calculate distance and log
             print(self.calculate_distance(generated_test_batch, pos_test).item())
  

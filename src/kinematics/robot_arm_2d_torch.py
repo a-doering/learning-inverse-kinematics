@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.functional import Tensor
 import time
+from typing import Tuple
 
 class RobotArm2d():
     """2D PRRR robot arm from ardizzone et al. (prismatic, rotational, rotational, rotational)
@@ -113,7 +114,7 @@ class RobotArm2d():
 
     def init_plot(self) -> plt.figure:
         """Initialize matplotlib figure"""
-        return plt.figure(figsize=(8, 8))
+        return plt.subplots(figsize=(8, 8))
 
     def viz_forward(self, pos: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_forward", viz_format: tuple = (".png", ".svg")) -> None:
         """Visualization of forward kinematics positions
@@ -127,7 +128,7 @@ class RobotArm2d():
         # Bring pos on cpu for plotting
         pos = pos.cpu().numpy()
         
-        fig = self.init_plot()
+        fig, ax = self.init_plot()
         plt.scatter(pos[:, 0], pos[:, 1], s=5, alpha=0.5)
         plt.xlim(*self.rangex)
         plt.ylim(*self.rangey)
@@ -141,7 +142,7 @@ class RobotArm2d():
             plt.show()
         plt.close(fig)
 
-    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_inverse", viz_format: tuple = (".png", ".svg")) -> None:
+    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_inverse", viz_format: tuple = (".png", ".svg"), ax: plt.axes = None) -> Tuple[plt.axes, float]:
         """Visualization of inverse kinematic configurations for end effector position
 
         :param pos: End effector position, size (n, 2), use n=1 to get informative plots
@@ -150,10 +151,16 @@ class RobotArm2d():
         :param show: Bool, True if plot should be displayed
         :param fig_name: Name of the figure without ending or directory, e.g. "fig1"
         :param viz_format: Formats in which the plot should be saved, e.g. (".png", ".svg") or ("png",)
+        :param ax: If axes are passed then we plot on these axes and return to them, also we cannot save anymore.
         """
 
         # Setup plot
-        fig = self.init_plot()
+        if ax == None:
+            passed_ax = False
+            fig, ax = self.init_plot()
+        else:
+            passed_ax = True
+            ax = ax or plt.gca()
         opts = {'alpha': 0.05, 'scale': 1, 'angles': 'xy', 'scale_units': 'xy', 'headlength': 0, 'headaxislength': 0, 'linewidth': 1.0, 'rasterized': True}
 
         angle = torch.zeros_like(thetas[:, 1], device=thetas.device)
@@ -164,29 +171,33 @@ class RobotArm2d():
             angle += thetas[:, joint + 1]
             p_current, p_next = self.advance_joint(p_next, self.lengths[joint].to(thetas.device), angle)
             # Plot arm between the two positions
-            plt.quiver(p_current[:, 0], p_current[:, 1], (p_next-p_current)[:, 0], (p_next-p_current)[:, 1], **{'color': self.colors[joint], **opts})
-
+            ax.quiver(p_current[:, 0], p_current[:, 1], (p_next-p_current)[:, 0], (p_next-p_current)[:, 1], **{'color': self.colors[joint], **opts})
 
         # Calculate distance from target
         distance = self.distance_euclidean(pos, p_next)
 
         # Plot cross to mark end effector position
         l_cross = 0.6
-        plt.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
-        plt.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
+        ax.vlines(pos[:, 0], pos[:, 1]-l_cross, pos[:, 1]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
+        ax.hlines(pos[:, 1], pos[:, 0]-l_cross, pos[:, 0]+l_cross, ls='-', colors='black', linewidth=.5, alpha=.5, zorder=-1)
 
-        plt.xlim(*self.rangex)
-        plt.ylim(*self.rangey)
-        plt.axvline(x=0, ls=':', c='gray', linewidth=.5)
+        ax.set_xlim(*self.rangex)
+        ax.set_ylim(*self.rangey)
+        ax.axvline(x=0, ls=':', c='gray', linewidth=.5)
         # Euclidean position is only calculated to the first entry of pos, while target crosses for all will be displayed
-        plt.title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {distance:.3f}")
-
-        if save:
+        ax.set_title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {distance:.3f}")
+        
+        # If ax were passed we can only save the subplot and not the individual plots
+        if save and not passed_ax:
             for format in viz_format:
-                fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
+                plt.savefig(os.path.join(self.viz_dir, fig_name) + format)
         if show:
             plt.show()
-        plt.close(fig)
+        if passed_ax:
+            return ax, distance.item()
+        else:
+            plt.close(fig)
+            return ax, distance.item()
 
     def save_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, filename: str = "inverse_data") -> None:
         """Saving of inverse kinematics
