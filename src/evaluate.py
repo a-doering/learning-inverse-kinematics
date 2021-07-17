@@ -36,23 +36,22 @@ class Evaluator():
         if self.cuda:
             self.generator.cuda()
 
-    def latent_variable_walk(self):
+    def plot_latent_walk(self):
         # TODO: e.g. 3x3 subplots with different latent variables
         raise NotImplementedError
 
     def plot_multiple_pos(self, n_rows: int, n_cols: int, z: list = None, positions_x = [0.5, 2, 3.5, 5], positions_y = [1.2, 1.2, 1.2, 1.2], save: bool = True, show: bool = False, fig_name: str = "evaluate_multiple_pos", viz_format: tuple = (".png", ".svg")):
         # Different positions, not latent variable walk
-        fig, axs = plt.subplots(n_rows,n_cols, figsize=(n_cols * 3, n_rows * 2), facecolor="w", edgecolor="k", sharey=True)
+        fig, axs = plt.subplots(n_rows,n_cols, figsize=(n_cols * 9, n_rows * 6), facecolor="w", edgecolor="k", sharey=True)
         fig.subplots_adjust(hspace = .5, wspace=.001)        
         axs = axs.ravel()
         Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
 
         for i in range(n_rows * n_cols):
-            ####
-            print(i)
+            print(f"Plotting subplot {i+1} / {n_rows * n_cols}")
+            # Create test batch, all with same target position
             pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
             pos_test[:, 1] = positions_y[i]
-            # Create test batch, all with same target position
             z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
             # Inference
             with torch.no_grad():
@@ -69,9 +68,6 @@ class Evaluator():
             plt.show()
         plt.close(fig)            
 
-    def plot_inverse(self, z, pos):
-        raise NotImplementedError
-
     def calculate_distance(self, thetas, pos):
         pos_forward = self.arm.forward(thetas)
         return self.arm.distance_euclidean(pos_forward, pos.cpu())
@@ -87,6 +83,7 @@ class Evaluator():
         positions_y = [1.2, 1.2, 1.2, 1.2]
 
         self.plot_multiple_pos(1,4)
+        self.plot_latent_walk()
         # for i in range(len(positions_x)):
         #     pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
         #     pos_test[:, 1] = positions_y[i]
