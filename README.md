@@ -16,6 +16,9 @@ Training without discriminator, 7DOF           |  Training with discriminator, 7
 :-------------------------:|:-------------------------:
 ![](img/evaluate_no_disc.png) Mode collapse can be seen.  |  TODO
 
+Multiple Positions, no discriminator:
+![](img/evaluate_no_disc_multiple_pos.png)
+
 
 ## Setup
 
