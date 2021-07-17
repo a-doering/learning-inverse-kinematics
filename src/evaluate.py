@@ -40,22 +40,27 @@ class Evaluator():
         # TODO: e.g. 3x3 subplots with different latent variables
         raise NotImplementedError
 
-    def multiple_positions(self):
-        # Plot multiple positions
-        # TODO: input: multiple positions, e.g. 5 and then 5 plots next to each other
-        raise NotImplementedError
-
-    def create_subplots(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_evaluate_debug", viz_format: tuple = (".png", ".svg")):
-        fig, axs = plt.subplots(2,5, figsize=(15,6), facecolor="w", edgecolor="k")
+    def plot_multiple_pos(self, n_rows: int, n_cols: int, z: list = None, positions_x = [0.5, 2, 3.5, 5], positions_y = [1.2, 1.2, 1.2, 1.2], save: bool = True, show: bool = False, fig_name: str = "evaluate_multiple_pos", viz_format: tuple = (".png", ".svg")):
+        # Different positions, not latent variable walk
+        fig, axs = plt.subplots(n_rows,n_cols, figsize=(n_cols * 3, n_rows * 2), facecolor="w", edgecolor="k", sharey=True)
         fig.subplots_adjust(hspace = .5, wspace=.001)        
         axs = axs.ravel()
-        for i in range(10):
-            axs[i].set_title(str(i))
-            _, distance = self.arm.viz_inverse(pos, thetas, fig_name=fig_name + f"{i}", ax=axs[i])
-            axs[i].set_title(f"{distance:.3f}")
-            # Debug statement
-            pos = pos + pos
+        Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
+
+        for i in range(n_rows * n_cols):
+            ####
             print(i)
+            pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
+            pos_test[:, 1] = positions_y[i]
+            # Create test batch, all with same target position
+            z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
+            # Inference
+            with torch.no_grad():
+                thetas_generated = self.generator(z_test, pos_test).detach().cpu()
+            _, distance = self.arm.viz_inverse(pos_test.cpu(), thetas_generated, fig_name=fig_name + f"{i}", ax=axs[i])
+            axs[i].set_title(f"d = {distance:.3f}")
+        fig.suptitle(f'Average distance to target for arm with {len(self.config["robot_arm"]["sigmas"])} DOF of length {sum(self.config["robot_arm"]["lengths"])}')
+        plt.tight_layout()
         if save:
             for format in viz_format:
                 fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
@@ -81,21 +86,22 @@ class Evaluator():
         positions_x = [0.5, 2, 3.5, 5]
         positions_y = [1.2, 1.2, 1.2, 1.2]
 
-        for i in range(len(positions_x)):
-            pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
-            pos_test[:, 1] = positions_y[i]
-            # Create test batch, all with same target position
-            z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
-            # Inference
-            with torch.no_grad():
-                generated_test_batch = self.generator(z_test, pos_test).detach().cpu()
-            # Visualize
-            fig_name = f"evaluate_{pos_test[0][0]}_{pos_test[0][1]:.3f}"
-            #self.arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
-            self.create_subplots(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
-            break
-            # Calculate distance and log
-            print(self.calculate_distance(generated_test_batch, pos_test).item())
+        self.plot_multiple_pos(1,4)
+        # for i in range(len(positions_x)):
+        #     pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
+        #     pos_test[:, 1] = positions_y[i]
+        #     # Create test batch, all with same target position
+        #     z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
+        #     # Inference
+        #     with torch.no_grad():
+        #         generated_test_batch = self.generator(z_test, pos_test).detach().cpu()
+        #     # Visualize
+        #     fig_name = f"evaluate_{pos_test[0][0]}_{pos_test[0][1]:.3f}"
+        #     #self.arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+        #     self.create_subplots(2, 5, pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+        #     break
+        #     # Calculate distance and log
+            # print(self.calculate_distance(generated_test_batch, pos_test).item())
  
 
 if __name__ == "__main__":
