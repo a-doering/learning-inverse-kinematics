@@ -18,7 +18,8 @@ Training without discriminator, 7DOF           |  Training with discriminator, 7
 
 Multiple Positions, no discriminator:
 ![](img/evaluate_no_disc_multiple_pos.png)
-
+Latent variable walk, no discriminator:
+![](img/evaluate_no_disc_latent_walk.png) We can observe that z has little influence, altough z is totally out of the distribution.
 
 ## Setup
 
