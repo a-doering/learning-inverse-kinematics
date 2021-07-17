@@ -35,7 +35,7 @@ class RobotArm2d():
         """Normal distributed values of the joint parameters"""
         return torch.randn(batch_size, self.num_joints, device=self.device) * self.sigmas
 
-    def advance_joint(self, current_pos: torch.FloatTensor, length: float, angle: torch.FloatTensor) -> (torch.FloatTensor, torch.FloatTensor):
+    def advance_joint(self, current_pos: torch.FloatTensor, length: float, angle: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
         """Calculate position of next joint
 
         :param current_pos: Current position at joint in 2d, size: (n, 2)
