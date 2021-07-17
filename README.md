@@ -1,12 +1,25 @@
 # Advanced Deep Learning for Robotics Project
 
 ## Kinematics
-2D: Forward and inverse kinematics with visualization for a 4 DOF PRRR arm. Inverse is implemented with gradient descent, (not optimized) runtime: 99.5s for 100 forward passes with 1000 inverse passes each.
+2D: Forward and inverse kinematics with visualization for a robot arm with at least one prismatic and multiple rotational joints. The inverse is implemented with rejection sampling.
 
-Forward             |  Inverse
+
+
+Forward PRRR           |  Inverse PRRR
 :-------------------------:|:-------------------------:
 ![](img/forward.png)  |  ![](img/inverse.png)
 
+## GAN
+### Conditional GAN
+
+Training without discriminator, 7DOF           |  Training with discriminator, 7DOF 
+:-------------------------:|:-------------------------:
+![](img/evaluate_no_disc.png) Mode collapse can be seen.  |  TODO
+
+Multiple Positions, no discriminator:
+![](img/evaluate_no_disc_multiple_pos.png)
+Latent variable walk, no discriminator:
+![](img/evaluate_no_disc_latent_walk.png) We can observe that z has little influence, altough z is totally out of the distribution.
 
 ## Setup
 
@@ -16,7 +29,7 @@ mkdir code
 cd code
 git clone https://github.com/a-doering/tum-adlr-ss21-01.git
 cd tum-adlr-ss21-01
-git checkout --track origin/feature/gan 
+git checkout #--track origin/my_branch 
 
 # Virtual Env Setup
 python3 -m pip install virtualenv
@@ -26,7 +39,7 @@ pip3 install -r requirements.txt
 # Currently there was an import error for freia, is not installed yet on remote, can remove with nano from requirements.txt for now
 
 # Generate training data
-python src/kinematics/robot_arm_2d.py
+python src/kinematics/robot_arm_2d_torch.py
 # Train
 python src/main.py
 # Now login with wandb when asked
@@ -34,6 +47,3 @@ python src/main.py
 # Errors
 # In case of error you can run "wandb off" to switch the syncing off
 ```
-
-### Remote Setup
-TODO

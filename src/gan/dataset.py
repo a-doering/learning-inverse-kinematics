@@ -10,15 +10,15 @@ class InverseDataset2d(Dataset):
         self.path = path
         with open(self.path, "rb") as file:
             data = pickle.load(file)
-        self.thetas = torch.tensor(data["posteriors"], dtype=torch.float)
-        self.positions = torch.tensor(data["positions"], dtype=torch.float)
-        self.ratio = self.thetas.shape[0] // self.positions.shape[0]
+        self.thetas = torch.tensor(data["thetas"], dtype=torch.float)
+        self.pos = torch.tensor(data["pos"], dtype=torch.float)
+        self.ratio = self.thetas.shape[0] // self.pos.shape[0]
 
     def __len__(self) -> int:
         return self.thetas.shape[0]
 
     def __getitem__(self, index: int):
-        return self.thetas[index], self.positions[index // self.ratio]
+        return self.thetas[index], self.pos[index // self.ratio]
 
 
 def test_dataset():

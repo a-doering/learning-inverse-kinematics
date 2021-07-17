@@ -4,59 +4,129 @@ from kinematics.robot_arm_2d_torch import RobotArm2d
 import os
 import numpy as np
 import wandb
+import matplotlib.pyplot as plt
 
-#TODO: load config from wandb
-config = dict(
-    seed=123456,
-    lr=5e-4,
-    n_discriminator=5,
-    num_epochs=300,
-    sample_interval=1000,
-    save_model_interval=4000,
-    batch_size=64,
-    num_thetas=4,
-    dim_pos=2,
-    latent_dim=3,
-    pos_test=[1.51, 0.199]
-)
-wandb.init(
-    project="adlr_gan",
-    name="debug_batch",
-    tags=["debug_batchwise_generation"],
-    config=config
-)
-config = wandb.config
+class Evaluator():
+    """Evaluation class for the GAN"""
+    def __init__(self, checkpoint_name: str, run_dir: str = "wandb/latest-run"):
+        self.checkpoint_name = checkpoint_name
+        self.run_dir = run_dir        
+        wandb.init(
+            project="adlr_gan",
+            name="evaluation",
+            tags=["evaluation"],
+            config=os.path.join(self.run_dir, "files", "config.yaml")
+        )
+        self.config = wandb.config
+        self.checkpoint_path = os.path.join(self.run_dir, "files", "checkpoints")
+        self.viz_dir = os.path.join("visualizations", os.path.basename(os.path.normpath(run_dir)))
+        self.cuda = True if torch.cuda.is_available() else False
+        if self.cuda:
+            self.device = "cuda"
+        else:
+            self.device = "cpu"
 
-def evaluate():
-    pass
+    def load_model(self):
+        """"Load the generator with its settings from checkpoint and set to eval mode"""
+        self.generator = Generator(num_thetas=self.config.num_thetas, pos_dim=self.config.pos_dim, latent_dim=self.config.latent_dim)
+        checkpoint_full_path = os.path.join(self.checkpoint_path, self.checkpoint_name)
+        checkpoint = torch.load(checkpoint_full_path)
+        self.generator.load_state_dict(checkpoint["generator"])
+        self.generator.eval()
+        if self.cuda:
+            self.generator.cuda()
 
-def load_model(checkpoint_name: str, checkpoint_path: str = "wandb/latest-run/files/checkpoints"):
-    generator = Generator(num_thetas=config.num_thetas, dim_pos=config.dim_pos, latent_dim=config.latent_dim)
-    checkpoint_full_path = os.path.join(checkpoint_path, checkpoint_name)
-    checkpoint = torch.load(checkpoint_full_path)
-    generator.load_state_dict(checkpoint["generator"])
-    generator.eval()
-    return generator
+    def plot_latent_walk(self, n_rows: int, n_cols: int, z: list = [-2, 0.1, 2], positions_x = 3.5, positions_y = 1.2, save: bool = True, show: bool = False, fig_name: str = "evaluate_latent_walk", viz_format: tuple = (".png", ".svg")):
+        # Latent variable walk, same position
+        fig, axs = plt.subplots(n_rows,n_cols, figsize=(n_cols * 4, n_rows * 4), facecolor="w", edgecolor="k", sharey=True)
+        fig.subplots_adjust(hspace = .5, wspace=.001)        
+        axs = axs.ravel()
+        Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
 
-# TODO: create latent variable walk
-def latent_variable_walk():
-    raise NotImplementedError
+        # Same target position for all runs
+        pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x, device=self.device)
+        pos_test[:, 1] = positions_y
+
+        for i in range(n_rows * n_cols):
+            print(f"Plotting subplot {i+1} / {n_rows * n_cols}")
+ 
+            z_test = Tensor(np.random.normal(z[i], 1, (self.config.batch_size, self.config.latent_dim)))
+            # Inference
+            with torch.no_grad():
+                thetas_generated = self.generator(z_test, pos_test).detach().cpu()
+            _, distance = self.arm.viz_inverse(pos_test.cpu(), thetas_generated, fig_name=fig_name + f"{i}", ax=axs[i])
+            axs[i].set_title(f"z = {z[i]}, d = {distance:.3f}")
+        fig.suptitle(f'Latent variable walk for {self.config.latent_dim} latent variables.\nAverage distance to target for arm with {len(self.config["robot_arm"]["sigmas"])} DOF of length {sum(self.config["robot_arm"]["lengths"])}')
+        plt.tight_layout()
+        if save:
+            for format in viz_format:
+                fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
+                print("save!")
+        if show:
+            plt.show()
+        plt.close(fig)
+
+    def plot_multiple_pos(self, n_rows: int, n_cols: int, z: list = None, positions_x = [0.5, 2, 3.5, 5], positions_y = [1.2, 1.2, 1.2, 1.2], save: bool = True, show: bool = False, fig_name: str = "evaluate_multiple_pos", viz_format: tuple = (".png", ".svg")):
+        # Different positions, not latent variable walk
+        fig, axs = plt.subplots(n_rows,n_cols, figsize=(n_cols * 4, n_rows * 4), facecolor="w", edgecolor="k", sharey=True)
+        fig.subplots_adjust(hspace = .5, wspace=.001)        
+        axs = axs.ravel()
+        Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
+
+        for i in range(n_rows * n_cols):
+            print(f"Plotting subplot {i+1} / {n_rows * n_cols}")
+            # Create test batch, all with same target position
+            pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
+            pos_test[:, 1] = positions_y[i]
+            z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
+            # Inference
+            with torch.no_grad():
+                thetas_generated = self.generator(z_test, pos_test).detach().cpu()
+            _, distance = self.arm.viz_inverse(pos_test.cpu(), thetas_generated, fig_name=fig_name + f"{i}", ax=axs[i])
+            axs[i].set_title(f"d = {distance:.3f}")
+        fig.suptitle(f'Average distance to target for arm with {len(self.config["robot_arm"]["sigmas"])} DOF of length {sum(self.config["robot_arm"]["lengths"])}')
+        plt.tight_layout()
+        if save:
+            for format in viz_format:
+                fig.savefig(os.path.join(self.viz_dir, fig_name) + format)
+                print("save!")
+        if show:
+            plt.show()
+        plt.close(fig)            
+
+    def calculate_distance(self, thetas, pos):
+        pos_forward = self.arm.forward(thetas)
+        return self.arm.distance_euclidean(pos_forward, pos.cpu())
+
+    def evaluate(self):
+        Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
+
+        self.arm = RobotArm2d(self.config["robot_arm"]["lengths"], self.config["robot_arm"]["sigmas"], viz_dir = self.viz_dir)
+        self.load_model()
+
+        # Create test position
+        positions_x = [0.5, 2, 3.5, 5]
+        positions_y = [1.2, 1.2, 1.2, 1.2]
+
+        self.plot_multiple_pos(1,4)
+        self.plot_latent_walk(1,3, z=[-20, 0.01, 20])
+        # for i in range(len(positions_x)):
+        #     pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
+        #     pos_test[:, 1] = positions_y[i]
+        #     # Create test batch, all with same target position
+        #     z_test = Tensor(np.random.normal(0, 1, (self.config.batch_size, self.config.latent_dim)))
+        #     # Inference
+        #     with torch.no_grad():
+        #         generated_test_batch = self.generator(z_test, pos_test).detach().cpu()
+        #     # Visualize
+        #     fig_name = f"evaluate_{pos_test[0][0]}_{pos_test[0][1]:.3f}"
+        #     #self.arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+        #     self.create_subplots(2, 5, pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+        #     break
+        #     # Calculate distance and log
+            # print(self.calculate_distance(generated_test_batch, pos_test).item())
+ 
 
 if __name__ == "__main__":
-
-    cuda = True if torch.cuda.is_available() else False
-    Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-    arm = RobotArm2d()
-
-    checkpoint_names = ["151_236000_checkpoint.pth", "130_204000_checkpoint.pth", "97_152000_checkpoint.pth", "66_100000_checkpoint.pth"]
-    for checkpoint_name in checkpoint_names:
-        generator = load_model(checkpoint_name=checkpoint_name, checkpoint_path="checkpoints_1tazchme/checkpoints")
-        # Sample latent variable
-        pos_test = torch.full((config.batch_size, config.dim_pos), fill_value=config.pos_test[0])
-        pos_test[:, 1] = config.pos_test[1]
-        for i in range(10):
-            z_test = torch.FloatTensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
-            with torch.no_grad():
-                generated_test_batch = generator(z_test, pos_test)
-            arm.viz_inverse(pos_test, generated_test_batch, fig_name=f"test_batch_{checkpoint_name}_{i}")
-      
+    evaluator = Evaluator("250_checkpoint_final.pth", "wandb/run-20210705_123150-1nx0yjlw")
+    evaluator.evaluate()

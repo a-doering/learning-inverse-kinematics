@@ -3,16 +3,15 @@ import torch.nn as nn
 
 
 class Generator(nn.Module):
-    def __init__(self, num_thetas=4, dim_pos=2, latent_dim=3):
+    def __init__(self, num_thetas: int = 4, pos_dim: int = 2, latent_dim: int = 3):
         """Initialize Generator
 
         :param num_thetas: Number of joint parameters
-        :param dim_pos: Dimensions of position, e.g. 3 for 3D (x,y,z)
+        :param pos_dim: Dimensions of position, e.g. 3 for 3D (x,y,z)
         :param latent_dim: Latent dimension
         """
         super(Generator, self).__init__()
 
-        # TODO: figure out best embedding for continuous "labels"/pos
         def block(in_features: int, out_features: int, normalize: bool = True):
             layers = [nn.Linear(in_features, out_features)]
             if normalize:
@@ -21,7 +20,7 @@ class Generator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *block(latent_dim + dim_pos, 128, normalize=False),
+            *block(latent_dim + pos_dim, 128, normalize=False),
             *block(128, 256),
             #*block(256, 512),
             #*block(512, 1024),
@@ -38,7 +37,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, num_thetas=4, dim_pos=2):
+    def __init__(self, num_thetas:int = 4, pos_dim: int = 2):
         """Initialize Discriminator
 
         :param num_thetas: Number of joint parameters
@@ -47,7 +46,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Linear(num_thetas + dim_pos, 256),
+            nn.Linear(num_thetas + pos_dim, 256),
             # nn.ReLU(inplace=True),
             # nn.Linear(512, 256),
             nn.ReLU(inplace=True),
