@@ -29,13 +29,13 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="debug",
-        tags=["device_dataset"],
+        name="cgan",
+        tags=["add_discriminator"],
         config=config
     )
     return wandb.config
 
-def train(config_path: str = "config/config_generator.yaml") -> None:
+def train(config_path: str = "config/config_cgan.yaml") -> None:
     config = set_wandb(config_path)
     # Set random seeds
     seed = config["seed"]
@@ -49,22 +49,30 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
 
     dataloader = set_dataloader(config.data_path, config.batch_size)
     generator = Generator(num_thetas=config.num_thetas, pos_dim=config.pos_dim, latent_dim=config.latent_dim)
-
+    discriminator = Discriminator(num_thetas=config.num_thetas, pos_dim=config.pos_dim)
+    adversarial_loss = torch.nn.MSELoss()
     # Print model to log structure
     print(generator)
+    print(discriminator)
     print(device)
 
     cuda = True if torch.cuda.is_available() else False
     if cuda:
         generator.cuda()
+        discriminator.cuda()
+        adversarial_loss.cuda()
 
     # Optimizer
     optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
-
+    optimizer_D = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
     # Log models
     wandb.watch(generator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
+    wandb.watch(discriminator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+    # Adversarial ground truths
+    valid = Tensor(config.batch_size, 1).fill_(1.0)
+    fake = Tensor(config.batch_size, 1).fill_(0.0)
     batches_done = 0
     arm = RobotArm2d(config["robot_arm"]["lengths"], config["robot_arm"]["sigmas"])
     torch.autograd.set_detect_anomaly(True)
@@ -85,15 +93,39 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
             pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
-            # Forward step and calculate loss
+
+            # Adversarial loss
+            validity = discriminator(thetas_gen, pos_gen)
+            loss_G_fake = adversarial_loss(validity, valid)
+
+            # Distance based loss
             pos_forward = arm.forward(thetas_gen)
             loss_G_pos = arm.distance_euclidean(pos_gen, pos_forward)
+
+            loss_G = (loss_G_fake + loss_G_pos) / 2
             # Backward step
             loss_G_pos.backward()
             optimizer_G.step()
+
+            # Train Discriminator
+            # ---------------------
+            optimizer_G.zero_grad()
+
+            validity_real = discriminator(thetas_real, pos_real)
+            loss_D_real = adversarial_loss(validity_real, valid)
+
+            # Loss for generated (fake) thetas
+            validity_fake = discriminator(thetas_gen.detach(), pos_gen)
+            loss_D_fake = adversarial_loss(validity_fake, fake)
+
+            # Total discriminator loss
+            loss_D = (loss_D_real + loss_D_fake) / 2
+            loss_D.backward()
+            optimizer_D.step()
+
             batches_done += 1
 
-        # # Test the generator, visualize and calculate mean distance
+        # Test the generator, visualize and calculate mean distance
         if epoch % config.sample_interval == 0:
             generator.eval()
             start = time.time()
@@ -116,7 +148,7 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
                 "generated_batch": generated_test_batch,
                 "test_distance": test_distance
             })
-            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | G los pos: {loss_G_pos.item()} | Test dis: {test_distance}"")#")
+            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()} |  G los pos: {loss_G_pos.item()} | Test dis: {test_distance}"")#")
             print(f"Time for saving: {time.time()-start}")
             generator.train()
 
@@ -124,6 +156,12 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
         wandb.log({
             "Epoch": epoch,
             "loss_G_pos": loss_G_pos,
+            "loss_G_fake": loss_G_fake,
+            "loss_G": loss_G,
+            "loss_D_real": loss_D_real,
+            "loss_D_fake": loss_D_fake,
+            "loss_D": loss_D
+ 
         })
         # Save checkpoint on last epoch and every save_model_interval
         if epoch % config.save_model_interval == 0 or epoch == config.num_epochs:
@@ -131,12 +169,19 @@ def train(config_path: str = "config/config_generator.yaml") -> None:
                 "epoch": epoch,
                 "generator": generator.state_dict(),
                 "optimizer_G": optimizer_G.state_dict(),
+                "discriminator": discriminator.state_dict(),
+                "optimizer_D": optimizer_D.state_dict(),
                 "loss_G_pos": loss_G_pos,
+                "loss_G_fake": loss_G_fake,
+                "loss_G": loss_G,
+                "loss_D_real": loss_D_real,
+                "loss_D_fake": loss_D_fake,
+                "loss_D": loss_D                
             }
             log_path = os.path.join(wandb.run.dir, "checkpoints")
             os.makedirs(log_path, exist_ok=True)
             # TODO: investigate difference of saving file in wandb dir with torch vs wandb
-            torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint_final.pth"))
+            torch.save(checkpoint, os.path.join(log_path,  f"{epoch}_checkpoint.pth"))
             # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
             print(f"{epoch} epoch: saved model")
     print(f"Finished training.")
