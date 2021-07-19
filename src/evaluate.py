@@ -109,7 +109,7 @@ class Evaluator():
         positions_y = [1.2, 1.2, 1.2, 1.2]
 
         self.plot_multiple_pos(1,4)
-        self.plot_latent_walk(1,3, z=[-20, 0.01, 20])
+        self.plot_latent_walk(1,3, z=[-5, 0, 5])
         # for i in range(len(positions_x)):
         #     pos_test = torch.full((self.config.batch_size, self.config.pos_dim), fill_value=positions_x[i], device=self.device)
         #     pos_test[:, 1] = positions_y[i]
@@ -128,5 +128,5 @@ class Evaluator():
  
 
 if __name__ == "__main__":
-    evaluator = Evaluator("250_checkpoint_final.pth", "wandb/run-20210705_123150-1nx0yjlw")
+    evaluator = Evaluator("250_checkpoint.pth", "wandb/run-20210719_012607-35a9uuqi")
     evaluator.evaluate()

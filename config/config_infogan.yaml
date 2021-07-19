@@ -1,0 +1,30 @@
+seed:
+  123456
+lr:
+  0.0005
+num_epochs:
+  250
+sample_interval:
+  5
+save_model_interval:
+  200
+batch_size:
+  1024
+num_thetas:
+  7
+pos_dim:
+  2
+latent_dim:
+  3
+pos_test:
+  [
+    3.51,
+   1.199
+  ]
+data_path:
+  "data/inverse_data_7_1000_100.pickle"
+robot_arm:
+  lengths:
+    [0.5, 0.5, 1, 1, 1, 1]
+  sigmas:
+    [0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]

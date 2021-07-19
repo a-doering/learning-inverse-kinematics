@@ -49,11 +49,49 @@ class Discriminator(nn.Module):
             nn.Linear(num_thetas + pos_dim, 256),
             # nn.ReLU(inplace=True),
             # nn.Linear(512, 256),
-            nn.ReLU(inplace=True),
-            nn.Linear(256, 1)
+            nn.ReLU(inplace=True)
+            #nn.Linear(256, 1)
         )
 
     def forward(self, thetas, pos) -> bool:
         disc_input = torch.cat((thetas, pos), -1)
-        validity = self.model(disc_input)
+        out = self.model(disc_input)
+        return out
+
+
+class DHead(nn.Module):
+    def __init__(self):
+        """Initialize discriminator head to predict real/fake"""
+        super(DHead, self).__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, out):
+        validity = self.model(out)
         return validity
+
+
+class QHead(nn.Module):
+    def __init__(self, pos_dim: int = 2, latent_dim: int = 3):
+        """Initialize auxiliary head to predict the latent variables and control variables
+        
+        :param num_thetas: Number of joint parameters
+        :param dim_pos: Dimensions of position, e.g. 3 for 3D (x,y,z)
+        """
+        super(QHead, self).__init__()
+
+        self.auxiliary = nn.Sequential(
+            nn.Linear(256, pos_dim)
+        )
+
+        self.latent = nn.Sequential(
+            nn.Linear(256, latent_dim)
+        )
+
+    def forward(self, out):
+        pos = self.auxiliary(out)
+        z = self.latent(out)
+        return pos, z

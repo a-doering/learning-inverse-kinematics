@@ -12,14 +12,20 @@ Forward PRRR           |  Inverse PRRR
 ## GAN
 ### Conditional GAN
 
-Training without discriminator, 7DOF           |  Training with discriminator, 7DOF 
-:-------------------------:|:-------------------------:
-![](img/evaluate_no_disc.png) Mode collapse can be seen.  |  TODO
+Training without discriminator, 7DOF, mode collapse can be seen.
+
 
 Multiple Positions, no discriminator:
 ![](img/evaluate_no_disc_multiple_pos.png)
 Latent variable walk, no discriminator:
 ![](img/evaluate_no_disc_latent_walk.png) We can observe that z has little influence, altough z is totally out of the distribution.
+### Info Gan
+![](img/infogan_2d/evaluate_latent_walk_z_2_0.01.png)
+![](img/infogan_2d/evaluate_latent_walk_z_5_0.png)
+![](img/infogan_2d/evaluate_latent_walk.png)
+![](img/infogan_2d/evaluate_multiple_pos.png)
+
+![](img/infogan_2d/infogan_2d.gif)
 
 ## Setup
 
@@ -46,4 +52,9 @@ python src/main.py
 
 # Errors
 # In case of error you can run "wandb off" to switch the syncing off
+```
+### Create gif
+Install: `sudo apt install imagemagick`, run in the directory with images:
+```sh
+convert -delay 100 -loop 0 $(ls -1v plot*) training.gif
 ```
