@@ -76,7 +76,11 @@ class DHead(nn.Module):
 
 class QHead(nn.Module):
     def __init__(self, pos_dim: int = 2, latent_dim: int = 3):
-        """Initialize auxiliary head to predict the latent variables and control variables"""
+        """Initialize auxiliary head to predict the latent variables and control variables
+        
+        :param num_thetas: Number of joint parameters
+        :param dim_pos: Dimensions of position, e.g. 3 for 3D (x,y,z)
+        """
         super(QHead, self).__init__()
 
         self.auxiliary = nn.Sequential(

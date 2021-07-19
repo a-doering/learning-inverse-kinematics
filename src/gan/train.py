@@ -29,13 +29,13 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="infogan_debug",
-        tags=["add_discriminator"],
+        name="infogan",
+        tags=["long_training"],
         config=config
     )
     return wandb.config
 
-def train(config_path: str = "config/config_cgan.yaml") -> None:
+def train(config_path: str = "config/config_infogan.yaml") -> None:
     config = set_wandb(config_path)
     # Set random seeds
     seed = config["seed"]
@@ -81,7 +81,6 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
     wandb.watch(discriminator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-    #TODO: define fixed noise
     # Adversarial ground truths
     valid = Tensor(config.batch_size, 1).fill_(1.0)
     fake = Tensor(config.batch_size, 1).fill_(0.0)
@@ -162,7 +161,7 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
             with torch.no_grad():
                 generated_test_batch = generator(z_test, pos_test).detach().cpu()
             # Visualize
-            fig_name = f"{epoch}_{batches_done}"
+            fig_name = f"{epoch}"
             arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
             # Calculate distance and log
             pos_forward_test = arm.forward(generated_test_batch)
@@ -172,7 +171,8 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
                 "generated_batch": generated_test_batch,
                 "test_distance": test_distance
             })
-            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)} | D loss: {loss_D.item()} | G loss: {loss_G.item()} |  G los pos: {loss_G_pos.item()} | Test dis: {test_distance}"")#")
+            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)}")
+            print(f"D loss: {loss_D.item()} | D loss fake: {loss_D_fake.item()} |G loss: {loss_G.item()} | G loss pos: {loss_G_pos.item()} | Q loss pos: {loss_Q_pos.item()} | Test dis: {test_distance}")
             print(f"Time for saving: {time.time()-start}")
             generator.train()
 
@@ -181,11 +181,11 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
             "Epoch": epoch,
             "loss_G_pos": loss_G_pos,
             "loss_G_fake": loss_G_fake,
+            "loss_Q_pos": loss_Q_pos,
             "loss_G": loss_G,
             "loss_D_real": loss_D_real,
             "loss_D_fake": loss_D_fake,
             "loss_D": loss_D
- 
         })
         # Save checkpoint on last epoch and every save_model_interval
         if epoch % config.save_model_interval == 0 or epoch == config.num_epochs:
@@ -194,9 +194,12 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
                 "generator": generator.state_dict(),
                 "optimizer_G": optimizer_G.state_dict(),
                 "discriminator": discriminator.state_dict(),
+                "dhead": dhead.state_dict(),
+                "qhead": qhead.state_dict(),
                 "optimizer_D": optimizer_D.state_dict(),
                 "loss_G_pos": loss_G_pos,
                 "loss_G_fake": loss_G_fake,
+                "loss_Q_pos": loss_Q_pos,
                 "loss_G": loss_G,
                 "loss_D_real": loss_D_real,
                 "loss_D_fake": loss_D_fake,
