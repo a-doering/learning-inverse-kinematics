@@ -5,7 +5,7 @@ import random
 from kinematics.robot_arm_2d_torch import RobotArm2d
 from torch.utils.data import DataLoader, dataloader
 from gan.dataset import InverseDataset2d
-from gan.model import Generator, Discriminator
+from gan.model import Generator, Discriminator, DHead, QHead
 from tqdm import tqdm
 import wandb
 import time
@@ -29,7 +29,7 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="cgan",
+        name="infogan_debug",
         tags=["add_discriminator"],
         config=config
     )
@@ -50,26 +50,38 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
     dataloader = set_dataloader(config.data_path, config.batch_size)
     generator = Generator(num_thetas=config.num_thetas, pos_dim=config.pos_dim, latent_dim=config.latent_dim)
     discriminator = Discriminator(num_thetas=config.num_thetas, pos_dim=config.pos_dim)
-    adversarial_loss = torch.nn.MSELoss()
+    dhead = DHead()
+    qhead = QHead(pos_dim=config.pos_dim, latent_dim=config.latent_dim)
+    # Loss for discrimination between real and fake
+    adversarial_loss = torch.nn.BCELoss()
+    # Loss for continuous latent variables
+    continuous_loss = torch.nn.GaussianNLLLoss()
+    
     # Print model to log structure
     print(generator)
     print(discriminator)
+    print(dhead)
+    print(qhead)
     print(device)
 
     cuda = True if torch.cuda.is_available() else False
     if cuda:
         generator.cuda()
         discriminator.cuda()
+        dhead.cuda()
+        qhead.cuda()
         adversarial_loss.cuda()
+        continuous_loss.cuda()
 
     # Optimizer
-    optimizer_G = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
-    optimizer_D = torch.optim.RMSprop(generator.parameters(), lr=config.lr)
+    optimizer_D = torch.optim.Adam([{'params': discriminator.parameters()}, {'params': dhead.parameters()}], lr=config.lr)
+    optimizer_G = torch.optim.Adam([{'params': generator.parameters()}, {'params': qhead.parameters()}], lr=config.lr)
     # Log models
     wandb.watch(generator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
     wandb.watch(discriminator, optimizer_G, log="all", log_freq=10)  # , log_freq=100
 
     Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+    #TODO: define fixed noise
     # Adversarial ground truths
     valid = Tensor(config.batch_size, 1).fill_(1.0)
     fake = Tensor(config.batch_size, 1).fill_(0.0)
@@ -82,47 +94,59 @@ def train(config_path: str = "config/config_cgan.yaml") -> None:
             # Convert to right device
             thetas_real = thetas_real.to(device)
             pos_real = pos_real.to(device)
+            # Sample noise as generator input
+            z = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
 
-            # Train Generator
+            # Train Discriminator and dhead
+            # ---------------------
+            optimizer_D.zero_grad()
+
+            d_out_real = discriminator(thetas_real, pos_real)
+            validity_real = dhead(d_out_real)
+            loss_D_real = adversarial_loss(validity_real, valid)
+
+           # Generation of positions can be a random position that can be achieved using forward kinematics of random input
+            pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
+            # Generate batch of thetas
+            thetas_gen = generator(z, pos_gen)
+
+            # Loss for generated (fake) thetas
+            d_out_fake = discriminator(thetas_gen, pos_gen)
+            validity_fake = dhead(d_out_fake)
+            loss_D_fake = adversarial_loss(validity_fake, fake)
+
+            # Total discriminator loss
+            loss_D = (loss_D_real + loss_D_fake)
+            loss_D.backward()
+            optimizer_D.step()
+
+            # Train Generator and qhead
             # ---------------------
             optimizer_G.zero_grad()
 
-            # Sample noise as generator input
-            z = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
             pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
 
             # Adversarial loss
-            validity = discriminator(thetas_gen, pos_gen)
+            d_out_fake = discriminator(thetas_gen, pos_gen)
+            validity = dhead(d_out_fake)
             loss_G_fake = adversarial_loss(validity, valid)
 
             # Distance based loss
             pos_forward = arm.forward(thetas_gen)
             loss_G_pos = arm.distance_euclidean(pos_gen, pos_forward)
 
-            loss_G = (loss_G_fake + loss_G_pos) / 2
+            # Latent loss
+            latent_pos, latent_z = qhead(d_out_fake)
+            loss_Q_pos = arm.distance_euclidean(pos_gen, latent_pos)
+
+            # TODO: latent loss, add to loss_G and implement... how? no idea
+            loss_G = loss_G_fake + loss_G_pos + loss_Q_pos
             # Backward step
-            loss_G_pos.backward()
+            loss_G.backward()
             optimizer_G.step()
-
-            # Train Discriminator
-            # ---------------------
-            optimizer_G.zero_grad()
-
-            validity_real = discriminator(thetas_real, pos_real)
-            loss_D_real = adversarial_loss(validity_real, valid)
-
-            # Loss for generated (fake) thetas
-            validity_fake = discriminator(thetas_gen.detach(), pos_gen)
-            loss_D_fake = adversarial_loss(validity_fake, fake)
-
-            # Total discriminator loss
-            loss_D = (loss_D_real + loss_D_fake) / 2
-            loss_D.backward()
-            optimizer_D.step()
-
             batches_done += 1
 
         # Test the generator, visualize and calculate mean distance
