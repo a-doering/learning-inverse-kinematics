@@ -6,6 +6,8 @@
 /.venv/
 # Python
 __pycache__/
+# Meshes for 3D visualization
+/meshes/
 
 # Generated training data
 /data/
