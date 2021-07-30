@@ -44,6 +44,17 @@ source .venv/bin/activate
 pip3 install -r requirements.txt
 # Currently there was an import error for freia, is not installed yet on remote, can remove with nano from requirements.txt for now
 
+# Installation of packages needed for 3d kinematics
+sudo apt install libeigen3-dev
+#  export EIGEN_INCLUDE_DIR="your/path/to/eigen3/"
+export EIGEN_INCLUDE_DIR="/usr/include/eigen3/" # on my vm
+sudo apt install swig
+sudo apt install gfortran
+pip install git+https://github.com/scleronomic/rokin
+
+# For 3D visualization, one can use meshes, export the path
+export ROKIN_MESH_DIR="your/path/to/the/meshes/"
+
 # Generate training data
 python src/kinematics/robot_arm_2d_torch.py
 # Train
