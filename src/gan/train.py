@@ -35,7 +35,7 @@ def set_wandb(config_path: str) -> wandb.config:
     )
     return wandb.config
 
-def train(config_path: str = "config/config_infogan.yaml") -> None:
+def train(config_path: str = "config/config_infogan_2d.yaml") -> None:
     config = set_wandb(config_path)
     # Set random seeds
     seed = config["seed"]
@@ -104,7 +104,7 @@ def train(config_path: str = "config/config_infogan.yaml") -> None:
             validity_real = dhead(d_out_real)
             loss_D_real = adversarial_loss(validity_real, valid)
 
-           # Generation of positions can be a random position that can be achieved using forward kinematics of random input
+            # Generation of positions can be a random position that can be achieved using forward kinematics of random input
             pos_gen = arm.forward(arm.sample_priors(config.batch_size)).to(device)
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
