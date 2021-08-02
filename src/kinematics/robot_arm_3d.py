@@ -61,6 +61,7 @@ def generate_data(robot, n=5, use_rot = False, inverses_each: int = 10, epsilon:
     end = time.time()
 
     # Appending information to filename and saving
+    #TODO indicate naming change for datasets that contain rotation
     filename += f"_{robot.id}_{pos_tcp.shape[0]}_{inverses_each}"
     print(f"Time taken for data generation: {end-start:.3f} seconds, generated:\nRobot: {robot.id} with {pos_tcp.shape[0]} forward configurations with {inverses_each} inverse configurations each.")
     # Save data
