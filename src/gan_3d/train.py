@@ -46,7 +46,6 @@ def distance_euclidean(pos_target: torch.FloatTensor, pos: torch.FloatTensor) ->
         dim = pos.shape[0]
         return torch.sum(pdist(pos_target, pos)) / dim
 
-#TODO: create 3d config
 def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
     config = set_wandb(config_path)
     # Set random seeds
@@ -100,8 +99,6 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
     #TODO: make this a parameter of the config
     arm = JustinArm07()
     
-
-    #############################################
     torch.autograd.set_detect_anomaly(True)
     for epoch in tqdm(range(1, config.num_epochs + 1)):
         for iter, (thetas_real, pos_real) in enumerate(dataloader):
@@ -166,33 +163,35 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             batches_done += 1
 
 
-        # # Test the generator, visualize and calculate mean distance
-        # if epoch % config.sample_interval == 0:
-        #     generator.eval()
-        #     start = time.time()
-        #     # Create test position
-        #     pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
-        #     pos_test[:, 1] = config.pos_test[1]
-        #     # Create test batch, all with same target position
-        #     z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
-        #     # Inference
-        #     with torch.no_grad():
-        #         generated_test_batch = generator(z_test, pos_test).detach().cpu()
-        #     # Visualize
-        #     fig_name = f"{epoch}"
-        #     arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
-        #     # Calculate distance and log
-        #     pos_forward_test = arm.forward(generated_test_batch)
-        #     test_distance = arm.distance_euclidean(pos_forward_test, pos_test.cpu())
-        #     wandb.log({
-        #         "plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
-        #         "generated_batch": generated_test_batch,
-        #         "test_distance": test_distance
-        #     })
-        #     print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)}")
-        #     print(f"D loss: {loss_D.item()} | D loss fake: {loss_D_fake.item()} |G loss: {loss_G.item()} | G loss pos: {loss_G_pos.item()} | Q loss pos: {loss_Q_pos.item()} | Test dis: {test_distance}")
-        #     print(f"Time for saving: {time.time()-start}")
-        #     generator.train()
+        # Test the generator, visualize and calculate mean distance
+        if epoch % config.sample_interval == 0:
+            generator.eval()
+            start = time.time()
+            # Create test position
+            pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
+            pos_test[:, 1] = config.pos_test[1]
+            pos_test[:, 2] = config.pos_test[2]
+            # Create test batch, all with same target position
+            z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
+            # Inference
+            with torch.no_grad():
+                generated_test_batch = generator(z_test, pos_test).detach().cpu()
+            # # Visualize
+            # fig_name = f"{epoch}"
+            # arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+            # Calculate distance and log
+
+            pos_forward_test = Tensor(arm.get_frames(generated_test_batch.detach().cpu().numpy())[:, -1, 0:3, 3])
+            test_distance = distance_euclidean(pos_forward_test, pos_test)
+            wandb.log({
+                #"plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
+                "generated_batch": generated_test_batch,
+                "test_distance": test_distance
+            })
+            print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)}")
+            print(f"D loss: {loss_D.item()} | D loss fake: {loss_D_fake.item()} |G loss: {loss_G.item()} | G loss pos: {loss_G_pos.item()} | Q loss pos: {loss_Q_pos.item()} | Test dis: {test_distance}")
+            print(f"Time for saving: {time.time()-start}")
+            generator.train()
 
         # Log every epoch
         wandb.log({
