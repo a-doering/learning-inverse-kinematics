@@ -3,9 +3,9 @@ seed:
 lr:
   0.0005
 num_epochs:
-  250
+  500
 sample_interval:
-  5
+  10
 save_model_interval:
   200
 batch_size:
@@ -18,9 +18,9 @@ latent_dim:
   3
 pos_test:
   [
-    0.75,
-    0.35,
-    0.35
+    0.4,
+    0.4,
+    0.4
   ]
 data_path:
   "data/inverse_data_JustinArm07_1000_100.pickle"

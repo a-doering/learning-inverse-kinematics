@@ -10,6 +10,7 @@ import wandb
 import time
 import yaml
 from rokin.Robots import JustinArm07
+from kinematics.JustinArm07 import JustinArm07Net
 
 def set_dataloader(data_path: str, batch_size: str) -> DataLoader:
     return DataLoader(
@@ -28,7 +29,7 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="infogan",
+        name="infogan with no detach justin",
         tags=["3d", "pos", "no_rot"],
         config=config
     )
@@ -98,6 +99,7 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
     batches_done = 0
     #TODO: make this a parameter of the config
     arm = JustinArm07()
+    arm_net = JustinArm07Net()
     
     torch.autograd.set_detect_anomaly(True)
     for epoch in tqdm(range(1, config.num_epochs + 1)):
@@ -118,7 +120,7 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             loss_D_real = adversarial_loss(validity_real, valid)
 
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
-            pos_gen = Tensor(arm.get_frames(arm.sample_q(shape=config.batch_size))[:, -1, 0:3, 3]) # TCP position
+            pos_gen = arm_net.forward(Tensor(arm.sample_q(shape=config.batch_size)))[:, -1, 0:3, 3] # TCP position
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
 
@@ -137,7 +139,7 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             optimizer_G.zero_grad()
 
             # Generation of positions can be a random position that can be achieved using forward kinematics of random input
-            pos_gen = Tensor(arm.get_frames(arm.sample_q(shape=config.batch_size))[:, -1, 0:3, 3]) # TCP position
+            pos_gen = arm_net.forward(Tensor(arm.sample_q(shape=config.batch_size)))[:, -1, 0:3, 3] # TCP position
             # Generate batch of thetas
             thetas_gen = generator(z, pos_gen)
 
@@ -147,8 +149,7 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             loss_G_fake = adversarial_loss(validity, valid)
 
             # Distance based loss
-            #TODO: investigate detach
-            pos_forward = Tensor(arm.get_frames(thetas_gen.detach().cpu().numpy())[:, -1, 0:3, 3]) # TCP position
+            pos_forward = arm_net.forward(thetas_gen)[:, -1, 0:3, 3] # TCP position
             loss_G_pos = distance_euclidean(pos_gen, pos_forward)
 
             # Latent loss
@@ -165,23 +166,22 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
 
         # Test the generator, visualize and calculate mean distance
         if epoch % config.sample_interval == 0:
-            generator.eval()
             start = time.time()
+            generator.eval()
             # Create test position
-            pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0])
+            pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0], device=device)
             pos_test[:, 1] = config.pos_test[1]
             pos_test[:, 2] = config.pos_test[2]
             # Create test batch, all with same target position
             z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Inference
             with torch.no_grad():
-                generated_test_batch = generator(z_test, pos_test).detach().cpu()
+                generated_test_batch = generator(z_test, pos_test).detach()
             # # Visualize
             # fig_name = f"{epoch}"
             # arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
             # Calculate distance and log
-
-            pos_forward_test = Tensor(arm.get_frames(generated_test_batch.detach().cpu().numpy())[:, -1, 0:3, 3])
+            pos_forward_test = arm_net.forward(generated_test_batch)[:, -1, 0:3, 3] # TCP position
             test_distance = distance_euclidean(pos_forward_test, pos_test)
             wandb.log({
                 #"plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
@@ -189,8 +189,8 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
                 "test_distance": test_distance
             })
             print(f"Epoch: {epoch}/{config.num_epochs} | Batch: {iter + 1}/{len(dataloader)}")
-            print(f"D loss: {loss_D.item()} | D loss fake: {loss_D_fake.item()} |G loss: {loss_G.item()} | G loss pos: {loss_G_pos.item()} | Q loss pos: {loss_Q_pos.item()} | Test dis: {test_distance}")
-            print(f"Time for saving: {time.time()-start}")
+            print(f"Losses: D: {loss_D.item():.3f} | D fake: {loss_D_fake.item():.3f} |G: {loss_G.item():.3f} | G pos: {loss_G_pos.item():.3f} | G fake: {loss_G_fake.item():.3f}| Q pos: {loss_Q_pos.item():.3f} | Test dis: {test_distance:.3f}")
+            print(f"Time for evaluation: {time.time()-start}")
             generator.train()
 
         # Log every epoch
