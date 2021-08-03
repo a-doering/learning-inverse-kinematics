@@ -66,7 +66,7 @@ class DHead(nn.Module):
 
         self.model = nn.Sequential(
             nn.Linear(256, 1),
-            nn.Sigmoid()
+            #nn.Sigmoid()
         )
 
     def forward(self, out):
