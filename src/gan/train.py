@@ -30,7 +30,7 @@ def set_wandb(config_path: str) -> wandb.config:
     wandb.init(
         project="adlr_gan",
         name="2d: infogan",
-        tags=["long_training"],
+        tags=["mse", "weight_pos=3, lr=0.005, pos y=0"],
         config=config
     )
     return wandb.config
@@ -53,7 +53,7 @@ def train(config_path: str = "config/config_infogan.yaml") -> None:
     dhead = DHead()
     qhead = QHead(pos_dim=config.pos_dim, latent_dim=config.latent_dim)
     # Loss for discrimination between real and fake
-    adversarial_loss = torch.nn.BCELoss()
+    adversarial_loss = torch.nn.MSELoss()
     # Loss for continuous latent variables
     continuous_loss = torch.nn.GaussianNLLLoss()
     
@@ -142,7 +142,7 @@ def train(config_path: str = "config/config_infogan.yaml") -> None:
             loss_Q_pos = arm.distance_euclidean(pos_gen, latent_pos)
 
             # TODO: latent loss, add to loss_G and implement... how? no idea
-            loss_G = loss_G_fake + loss_G_pos + loss_Q_pos
+            loss_G = loss_G_fake + config.weight_pos * loss_G_pos + loss_Q_pos
             # Backward step
             loss_G.backward()
             optimizer_G.step()

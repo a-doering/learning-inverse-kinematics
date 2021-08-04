@@ -1,11 +1,13 @@
 seed:
   123456
 lr:
-  0.0005
+  0.001.2
+weight_pos:
+  3
 num_epochs:
-  250
+  500
 sample_interval:
-  5
+  10
 save_model_interval:
   200
 batch_size:
@@ -19,7 +21,7 @@ latent_dim:
 pos_test:
   [
     3.51,
-   1.199
+   0.00
   ]
 data_path:
   "data/inverse_data_7_1000_100.pickle"
