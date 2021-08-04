@@ -29,7 +29,7 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="infogan",
+        name="2d: infogan",
         tags=["long_training"],
         config=config
     )
@@ -162,7 +162,7 @@ def train(config_path: str = "config/config_infogan.yaml") -> None:
                 generated_test_batch = generator(z_test, pos_test).detach().cpu()
             # Visualize
             fig_name = f"{epoch}"
-            arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
+            arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name, epoch=epoch)
             # Calculate distance and log
             pos_forward_test = arm.forward(generated_test_batch)
             test_distance = arm.distance_euclidean(pos_forward_test, pos_test.cpu())

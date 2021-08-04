@@ -142,7 +142,7 @@ class RobotArm2d():
             plt.show()
         plt.close(fig)
 
-    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_inverse", viz_format: tuple = (".png", ".svg"), ax: plt.axes = None) -> Tuple[plt.axes, float]:
+    def viz_inverse(self, pos: torch.FloatTensor, thetas: torch.FloatTensor, save: bool = True, show: bool = False, fig_name: str = "fig_inverse", viz_format: tuple = (".png", ".svg"), ax: plt.axes = None, epoch: int = None) -> Tuple[plt.axes, float]:
         """Visualization of inverse kinematic configurations for end effector position
 
         :param pos: End effector position, size (n, 2), use n=1 to get informative plots
@@ -152,6 +152,7 @@ class RobotArm2d():
         :param fig_name: Name of the figure without ending or directory, e.g. "fig1"
         :param viz_format: Formats in which the plot should be saved, e.g. (".png", ".svg") or ("png",)
         :param ax: If axes are passed then we plot on these axes and return to them, also we cannot save anymore.
+        :param epoch: Epoch number to add to axis title.
         """
 
         # Setup plot
@@ -185,7 +186,10 @@ class RobotArm2d():
         ax.set_ylim(*self.rangey)
         ax.axvline(x=0, ls=':', c='gray', linewidth=.5)
         # Euclidean position is only calculated to the first entry of pos, while target crosses for all will be displayed
-        ax.set_title(f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {distance:.3f}")
+        ax_title = f"Inverse Kinematics with {thetas.shape[0]} samples, mean euc. distance = {distance:.3f}"
+        if epoch is not None:
+            ax_title += f", ep = {epoch: >4}"
+        ax.set_title(ax_title)
         
         # If ax were passed we can only save the subplot and not the individual plots
         if save and not passed_ax:
