@@ -248,7 +248,7 @@ if __name__ == "__main__":
 
     ## 5 DOF P RRR R joints
     arm = RobotArm2d(lengths = [0.5, 0.5, 1, 1, 1, 1], sigmas = [0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
-    num_forward = 10
+    num_forward = 1000
     num_inverse_each = 100
     # Viz forward
     # priors = arm.sample_priors(num_forward)
@@ -292,9 +292,10 @@ if __name__ == "__main__":
     # num_inverse_each = 1000
     # priors = arm.sample_priors(num_forward)
     # pos = arm.forward(priors)
+    # #pos = torch.cuda.FloatTensor([[0.9, -3.8]])
     # thetas_gen = arm.inverse(pos, num_inverse_each)
     # print(thetas_gen.shape)
     # time_taken = time.time() - start
     # print(f"time: {time_taken}")
     # #print(thetas_gen)
-    # arm.viz_inverse(pos[0:1], thetas_gen[0:num_inverse_each])
+    # arm.viz_inverse(pos[0:1].cpu(), thetas_gen[0:num_inverse_each].cpu())
