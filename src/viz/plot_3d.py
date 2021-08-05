@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import os
 
 
-def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, save: bool = True, show: bool = False, viz_dir: str = "visualizations", fig_name: str = "fig_line_3d", viz_format: tuple = (".png", ".svg")):
+def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, epoch:str = None, save: bool = True, show: bool = False, viz_dir: str = "visualizations", fig_name: str = "fig_line_3d", viz_format: tuple = (".png", ".svg")):
     """Visualization of robot arm as lines between joints in 3d
 
     :param pos: Frame positions (n, n_dof, 3).
     :param target: Target TCP position (1, 3).
     :param epsilon: Distance to target that is desired.
+    :param epoch: Current epoch, if given added to plot title.
     :param save: Bool, True if plot should be saved
     :param show: Bool, True if plot should be displayed
     :param viz_dir: Directory in which visualizations will be saved
@@ -25,7 +26,7 @@ def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, sav
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     if target is not None:
-        ax.scatter(target[:, 0], target[:, 1], target[:, 2], c="b")
+        ax.scatter(target[:, 0], target[:, 1], target[:, 2], c="b", label="Target")
     c = "k"
     # Plot all arms, green if close to target, red otherwise, black if no target given
     for i in range(pos.shape[0]):
@@ -33,24 +34,40 @@ def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, sav
             dist = np.linalg.norm(target - pos[i, -1,:], axis=1)
             if dist < epsilon:
                 c = "g"
+                label="d < eps"
             elif dist < 2*epsilon:
                 c = "orange"
+                label="d < 2*eps"
             else:
                 c = "r"
-        ax.plot(pos[i, :, 0],pos[i, :, 1],pos[i, :, 2], c=c)
+                label="d > 2eps"
+        ax.plot(pos[i, :, 0],pos[i, :, 1],pos[i, :, 2], c=c, label=label)
         ax.scatter(pos[i, :, 0],pos[i, :, 1],pos[i, :, 2], c=c)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("z")
-    title = f"Robot arms"
+    title = f"Robot arms, eps={epsilon}"
     if target is not None:
         dist_avg = np.sum(np.linalg.norm(target - pos[:, -1,:], axis=1))/pos.shape[0]
-        title += f", d_avg = {dist_avg}"        
+        title += f", d_avg = {dist_avg:.3f}"
+    if epoch is not None:
+        title += f", epoch={epoch: >4}"
+    # Add legend about color      
     ax.set_title(title)
     ax.set_xlim(*(-0.7,0.7))
     ax.set_ylim(*(-0.7,0.7))
     ax.set_zlim(*(-0.7,0.7))
-    ax.legend()
+
+    # Remove duplicate labels
+    handles, labels = plt.gca().get_legend_handles_labels()
+    i =1
+    while i<len(labels):
+        if labels[i] in labels[:i]:
+            del(labels[i])
+            del(handles[i])
+        else:
+            i +=1
+    plt.legend(handles, labels, loc="upper left")
 
     # Save
     if save:
@@ -71,4 +88,4 @@ if __name__ == "__main__":
     target = np.array([[0.4,0.4,0.4]])
 
     #print(pos[0].shape)
-    viz_robot_line(pos, target, 0.1)
+    viz_robot_line(pos, target, 0.1, 99)
