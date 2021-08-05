@@ -29,7 +29,7 @@ def set_wandb(config_path: str) -> wandb.config:
     # Setup wandb for model tracking
     wandb.init(
         project="adlr_gan",
-        name="3d weight pos = 5, no sigmoid",
+        name="3d weight pos = 8, no sigmoid",
         tags=["3d", "pos", "no_rot"],
         config=config
     )
@@ -156,9 +156,8 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             latent_pos, latent_z = qhead(d_out_fake)
             loss_Q_pos = distance_euclidean(pos_gen, latent_pos)
 
-            weight_pos = 5
             # TODO: latent loss, add to loss_G and implement... how? no idea
-            loss_G = loss_G_fake + weight_pos * loss_G_pos + loss_Q_pos
+            loss_G = loss_G_fake + config.weight_pos * loss_G_pos + loss_Q_pos
             # Backward step
             loss_G.backward()
             optimizer_G.step()
