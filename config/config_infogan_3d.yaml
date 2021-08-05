@@ -1,0 +1,31 @@
+seed:
+  123456
+lr:
+  0.003
+num_epochs:
+  100
+sample_interval:
+  5
+save_model_interval:
+  50
+batch_size:
+  1024
+num_thetas:
+  7
+pos_dim:
+  3
+latent_dim:
+  3
+weight_pos:
+  8
+viz_dir:
+  "visualizations"
+pos_test:
+  [
+    0.4,
+    0.4,
+    0.4
+  ]
+data_path:
+  "data/inverse_data_JustinArm07_1000_100.pickle"
+#TODO: get robot arm in there, find out a good test position
