@@ -25,8 +25,7 @@ def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, epo
     mpl.rcParams["legend.fontsize"] = 10
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    if target is not None:
-        ax.scatter(target[:, 0], target[:, 1], target[:, 2], c="b", label="Target")
+    
     c = "k"
     # Plot all arms, green if close to target, red otherwise, black if no target given
     for i in range(pos.shape[0]):
@@ -43,6 +42,9 @@ def viz_robot_line(pos: np.ndarray, target: np.ndarray = None, epsilon=0.05, epo
                 label="d > 2eps"
         ax.plot(pos[i, :, 0],pos[i, :, 1],pos[i, :, 2], c=c, label=label)
         ax.scatter(pos[i, :, 0],pos[i, :, 1],pos[i, :, 2], c=c)
+    
+    if target is not None:
+        ax.scatter(target[:, 0], target[:, 1], target[:, 2], c="b", label="Target")
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("z")

@@ -18,6 +18,8 @@ latent_dim:
   3
 weight_pos:
   8
+viz_dir:
+  "visualizations"
 pos_test:
   [
     0.4,

@@ -11,6 +11,7 @@ import time
 import yaml
 from rokin.Robots import JustinArm07
 from kinematics.JustinArm07 import JustinArm07Net
+from viz.plot_3d import viz_robot_line
 
 def set_dataloader(data_path: str, batch_size: str) -> DataLoader:
     return DataLoader(
@@ -172,19 +173,24 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             pos_test = torch.full_like(pos_real, fill_value=config.pos_test[0], device=device)
             pos_test[:, 1] = config.pos_test[1]
             pos_test[:, 2] = config.pos_test[2]
+
             # Create test batch, all with same target position
             z_test = Tensor(np.random.normal(0, 1, (config.batch_size, config.latent_dim)))
             # Inference
             with torch.no_grad():
                 generated_test_batch = generator(z_test, pos_test).detach()
             # # Visualize
-            # fig_name = f"{epoch}"
+            fig_name = f"{epoch}"
             # arm.viz_inverse(pos_test.cpu(), generated_test_batch.cpu(), fig_name=fig_name)
             # Calculate distance and log
-            pos_forward_test = arm_net.forward(generated_test_batch)[:, -1, 0:3, 3] # TCP position
-            test_distance = distance_euclidean(pos_forward_test, pos_test)
+            pos_forward_test = arm_net.forward(generated_test_batch)[:, :, 0:3, 3] # TCP position
+            pos_test_single = torch.tensor([[config.pos_test[0], config.pos_test[1], config.pos_test[2]]], device=device)
+
+            viz_robot_line(pos_forward_test[:20].cpu().numpy(), pos_test_single.cpu().numpy(), viz_dir=config.viz_dir, fig_name=fig_name, epoch=epoch)
+
+            test_distance = distance_euclidean(pos_forward_test[:, -1, :], pos_test)
             wandb.log({
-                #"plot": wandb.Image(os.path.join(arm.viz_dir, fig_name + ".png")),
+                "plot": wandb.Image(os.path.join(config.viz_dir, fig_name + ".png")),
                 "generated_batch": generated_test_batch,
                 "test_distance": test_distance
             })
