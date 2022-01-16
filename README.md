@@ -36,6 +36,12 @@ python src/kinematics/robot_arm_2d.py
 python src/kinematics/robot_arm_3d.py
 ```
 ## 3.1 Train a GAN
+In the beginning of the training we can see mode collapse (all generated configurations are the same), but then we can see how the configurations fan out.
+Training 2D           |  Training 3D 
+:-------------------------:|:-------------------------:
+<img src="docs/training/training_2d.gif" width="200px;" alt=""/> | <img src="docs/training/training_3d.gif" width="200px;" alt=""/>
+
+
 ```sh
 python src/kinematics/gan/train.py
 python src/kinematics/gan_3d/train.py
