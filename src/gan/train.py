@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 import random
-from kinematics.robot_arm_2d_torch import RobotArm2d
+from kinematics.robot_arm_2d import RobotArm2d
 from torch.utils.data import DataLoader, dataloader
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator, DHead, QHead

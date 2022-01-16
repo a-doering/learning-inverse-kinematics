@@ -1,7 +1,7 @@
 import pickle
 from torch.utils.data import Dataset
 import torch
-from kinematics.robot_arm_2d_torch import RobotArm2d
+from kinematics.robot_arm_2d import RobotArm2d
 
 
 class InverseDataset2d(Dataset):
