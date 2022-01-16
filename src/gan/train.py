@@ -212,3 +212,6 @@ def train(config_path: str = "config/config_infogan_2d.yaml") -> None:
             # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
             print(f"{epoch} epoch: saved model")
     print(f"Finished training.")
+
+if __name__ == "__main__":
+    train()

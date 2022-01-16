@@ -11,7 +11,7 @@ import time
 import yaml
 from rokin.Robots import JustinArm07
 from kinematics.JustinArm07 import JustinArm07Net
-from viz.plot_3d import viz_robot_line
+from evaluate.plot_3d import viz_robot_line
 
 def set_dataloader(data_path: str, batch_size: str) -> DataLoader:
     return DataLoader(
@@ -235,3 +235,6 @@ def train(config_path: str = "config/config_infogan_3d.yaml") -> None:
             # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
             print(f"{epoch} epoch: saved model")
     print(f"Finished training.")
+
+if __name__ == "__main__":
+    train()
