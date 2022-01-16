@@ -6,7 +6,7 @@ These numerical algorithms can be sped up by providing an initial estimate that 
 The goal of this work is to obtain the initial estimates using neural networks.
 We compare two network architectures for this problem:
 An invertible neural network (INN) trained on a forward kinematics dataset, and a generative adversarial network (GAN) trained on an inverse kinematics dataset.
-TODO: Informative image
+Our approach can be seen as an extension to the work conducted by [Ardizzone et al.](https://arxiv.org/abs/1808.04730) by using more complex robot configurations and extending it to a 3D setting.
 
 ## 1. Installation using Docker
 Use the following [setup.sh](setup.sh) script to clone the repo, build a docker image and start a container.
@@ -19,8 +19,16 @@ docker build -f Dockerfile -t adlr .
 docker run -ti adlr /bin/bash
 ```
 ## 2. Generate Training Data
-Before we can train the models, we need to create training data. The training data is 2D or 3D robot arm configurations.
+The data is generated using rejection sampling.
+This is a 2D example of a 7 degree robot arm with one prismatic and six rotational joints.
+3D follows the same concept.
+We create a dataset with n tcp positions with each m joint configurations.
+Forward           |  One Inverse | 1000 Inverses
+:-------------------------:|:-------------------------:|:-------------------------:
+![Forward](docs/data_generation/fig_forward.png)|  ![One Inverse](docs/data_generation/fig_one_inverse.png)| ![All Inverse](docs/data_generation/fig_inverse.png)
+  Sample n positions | Sample configurations within epsilon ball of each position| Repeat until you have m configurations per position
 
+Before we can train the models, we need to create training data. When chosing parameters, keep in mind that the INN needs only the forward kinematics.
 ```sh
 # Generate 2D training data
 python src/kinematics/robot_arm_2d.py
@@ -52,4 +60,5 @@ python src/inn/train.py
 </table>
 
 ## Acknowledgements
-This work was conducted as project of the Advanced Deep Learning for Robotics course by professor Berthold Bäumel of the Technical Unviersity of Munich under supervison of Johannes Tenhumberg. The project has been supported by a Google Educational Grant.
+This work was conducted as a research project of the Advanced Deep Learning for Robotics course by professor Berthold Bäumel of the Technical Unviersity of Munich under supervison of Johannes Tenhumberg.
+The project has been supported by a Google Educational Grant.
