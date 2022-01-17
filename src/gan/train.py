@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 import random
-from kinematics.robot_arm_2d_torch import RobotArm2d
+from kinematics.robot_arm_2d import RobotArm2d
 from torch.utils.data import DataLoader, dataloader
 from gan.dataset import InverseDataset2d
 from gan.model import Generator, Discriminator, DHead, QHead
@@ -212,3 +212,6 @@ def train(config_path: str = "config/config_infogan_2d.yaml") -> None:
             # wandb.save(os.path.join(log_path, f"{epoch}_checkpoint.pth"))
             print(f"{epoch} epoch: saved model")
     print(f"Finished training.")
+
+if __name__ == "__main__":
+    train()

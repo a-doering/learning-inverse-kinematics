@@ -1,6 +1,6 @@
 import torch
 from gan.model import Generator
-from kinematics.robot_arm_2d_torch import RobotArm2d
+from kinematics.robot_arm_2d import RobotArm2d
 import os
 import numpy as np
 import wandb
