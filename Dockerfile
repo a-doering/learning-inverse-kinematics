@@ -1,6 +1,7 @@
 FROM nvidia/cuda:10.2-cudnn7-runtime-ubuntu18.04
 ENV PATH="/root/miniconda3/bin:${PATH}"
 ARG PATH="/root/miniconda3/bin:${PATH}"
+ENV PYTHONPATH="/learning-inverse-kinematics/src"
 
 RUN apt update \
     && apt install -y htop python3-dev wget git imagemagick
