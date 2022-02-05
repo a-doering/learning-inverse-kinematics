@@ -19,8 +19,8 @@ RUN apt install -y libeigen3-dev\
 # Needed for rokin to not throw an error, modify if you want to use meshes
 ENV ROKIN_MESH_DIR="your/path/to/the/meshes/"
 
-COPY . TUM-ADLR-SS21-01/
-WORKDIR /TUM-ADLR-SS21-01
+COPY . learning-inverse-kinematics/
+WORKDIR /learning-inverse-kinematics
 
 RUN /bin/bash -c "source activate .venv \
     && pip install -r requirements.txt \
