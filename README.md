@@ -1,22 +1,24 @@
-# Learning the Inverse Kinematic with GANs and INNs (Invertible Neural Networks)
+# Learning Inverse Kinematics with GANs and INNs (Invertible Neural Networks)
 
-## Motivation
+<details>
+<summary> Motivation</summary>
 The calculation of inverse kinematics can be computationally expensive, since analytical solutions are often not available and numerical methods must be used instead.
 These numerical algorithms can be sped up by providing an initial estimate that is close to the correct solution.
 The goal of this work is to obtain the initial estimates using neural networks.
 We compare two network architectures for this problem:
 An invertible neural network (INN) trained on a forward kinematics dataset, and a generative adversarial network (GAN) trained on an inverse kinematics dataset.
 Our approach can be seen as an extension to the work conducted by [Ardizzone et al.](https://arxiv.org/abs/1808.04730) by using more complex robot configurations and extending it to a 3D setting.
+</details>
 
 ## 1. Installation using Docker
 Use the following [setup.sh](setup.sh) script to clone the repo, build a docker image and start a container.
 ```sh
 #!/bin/bash
-git clone https://github.com/a-doering/tum-adlr-ss21-01.git
-cd tum-adlr-ss21-01
-docker build -f Dockerfile -t adlr .
+git clone https://github.com/a-doering/learning-inverse-kinematics.git
+cd learning-inverse-kinematics
+docker build -f Dockerfile -t learnik .
 # This will also activate the conda environment
-docker run -ti adlr /bin/bash
+docker run -ti learnik /bin/bash
 ```
 ## 2. Generate Training Data
 The data is generated using rejection sampling.
@@ -94,9 +96,9 @@ python src/evaluate/plot_distributions.py
 
 <table>
   <tr>
-    <td align="center"><a href="https://github.com/a-doering"><img src="https://avatars.githubusercontent.com/u/35858164?v=4?s=100" width="100px;" alt=""/><br /><sub><b> Andreas Doering </b></sub></a><br /><a href="https://github.com/a-doering/tum-adlr-ss21-01/commits?author=a-doering" title="Code">💻</a><a href="https://github.com/a-doering/tum-adlr-ss21-01/commits?author=a-doering" title="Documentation">📖</a><a href="#ideas-a-doering" title="Ideas, Planning, & Feedback">🤔</a>
+    <td align="center"><a href="https://github.com/a-doering"><img src="https://avatars.githubusercontent.com/u/35858164?v=4?s=100" width="100px;" alt=""/><br /><sub><b> Andreas Doering </b></sub></a><br /><a href="https://github.com/a-doering/learning-inverse-kinematics/commits?author=a-doering" title="Code">💻</a><a href="https://github.com/a-doering/learning-inverse-kinematics/commits?author=a-doering" title="Documentation">📖</a><a href="#ideas-a-doering" title="Ideas, Planning, & Feedback">🤔</a>
    <br /><sub><b>GAN, Kinematics</b></sub></a><br />
-    <td align="center"><a href="https://github.com/ArmanMielke"><img src="https://avatars.githubusercontent.com/u/27361575?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Arman Mielke</b></sub></a><br /><a href="https://github.com/a-doering/tum-adlr-ss21-01/commits?author=ArmanMielke" title="Code">💻</a>
+    <td align="center"><a href="https://github.com/ArmanMielke"><img src="https://avatars.githubusercontent.com/u/27361575?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Arman Mielke</b></sub></a><br /><a href="https://github.com/a-doering/learning-inverse-kinematics/commits?author=ArmanMielke" title="Code">💻</a>
 <a href="#ideas-ArmanMielke" title="Ideas, Planning, & Feedback">🤔</a>
    <br /><sub><b>INN</b></sub></a><br />
     <td align="center"><a href="https://github.com/scleronomic"><img src="https://avatars.githubusercontent.com/u/20596524?v=4?s=100" width="100px;" alt=""/><br /><sub><b> Johannes Tenhumberg</b></sub></a><br />

@@ -1,6 +1,6 @@
 #!/bin/bash
-git clone https://github.com/a-doering/tum-adlr-ss21-01.git
-cd tum-adlr-ss21-01
-docker build -f Dockerfile -t adlr .
+git clone https://github.com/a-doering/learning-inverse-kinematics.git
+cd learning-inverse-kinematics
+docker build -f Dockerfile -t learnik .
 # This will also activate the conda environment
-docker run -ti adlr /bin/bash
+docker run -ti learnik /bin/bash
